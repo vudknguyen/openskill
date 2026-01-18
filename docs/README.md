@@ -36,7 +36,7 @@ OpenSkill (`osk`) is a lightweight CLI tool that manages skills (reusable prompt
 
 ```bash
 # Install via npm
-npm install -g openskill
+npm install -g openskill-cli
 
 # Add a skill repository
 osk repo add https://github.com/example/skills
