@@ -24,7 +24,7 @@ OpenSkill is a lightweight CLI tool for managing skills across multiple AI codin
 ## Installation
 
 ```bash
-npm install -g openskill
+npm install -g openskill-cli
 ```
 
 ## Quick Start

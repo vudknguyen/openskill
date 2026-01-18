@@ -5,13 +5,13 @@
 ### npm (Recommended)
 
 ```bash
-npm install -g openskill
+npm install -g openskill-cli
 ```
 
 ### npx (No Installation)
 
 ```bash
-npx openskill --help
+npx openskill-cli --help
 ```
 
 ### Standalone Binary

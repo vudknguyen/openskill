@@ -1,5 +1,5 @@
 {
-  "name": "openskill",
+  "name": "openskill-cli",
   "version": "0.1.0",
   "description": "Agent-agnostic skill manager for AI coding agents (Claude Code, Cursor, Codex, Antigravity)",
   "type": "module",

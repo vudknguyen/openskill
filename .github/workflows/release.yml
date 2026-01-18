@@ -232,12 +232,12 @@ jobs:
 
           ### npm (recommended)
           ```bash
-          npm install -g openskill
+          npm install -g openskill-cli
           ```
 
           ### npx (no install needed)
           ```bash
-          npx openskill --help
+          npx openskill-cli --help
           ```
 
           ### Standalone binaries
