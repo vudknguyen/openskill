@@ -1,0 +1,270 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: 24
+
+jobs:
+  # Validate version and run tests
+  validate:
+    name: Validate & Test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      version_number: ${{ steps.version.outputs.VERSION_NUMBER }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from release
+        id: version
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION="$TAG_NAME"
+          VERSION_NUMBER="${VERSION#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "VERSION_NUMBER=$VERSION_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Release version: $VERSION"
+          echo "Version number: $VERSION_NUMBER"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update package.json version
+        env:
+          VERSION_NUMBER: ${{ steps.version.outputs.VERSION_NUMBER }}
+        run: npm version "$VERSION_NUMBER" --no-git-tag-version --allow-same-version
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --run
+
+  # Run tests on all platforms
+  test:
+    name: Test (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --run
+
+  # Build standalone binaries
+  build-binaries:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [validate, test]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            targets: node18-linux-x64,node18-linux-arm64
+          - os: macos-latest
+            targets: node18-macos-x64,node18-macos-arm64
+          - os: windows-latest
+            targets: node18-win-x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update package.json version
+        shell: bash
+        env:
+          VERSION_NUMBER: ${{ needs.validate.outputs.version_number }}
+        run: npm version "$VERSION_NUMBER" --no-git-tag-version --allow-same-version
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Bundle with esbuild
+        shell: bash
+        env:
+          PKG_VERSION: ${{ needs.validate.outputs.version_number }}
+        run: |
+          mkdir -p dist-bin
+          npx esbuild dist/cli/index.js --bundle --platform=node --target=node18 --format=cjs --outfile=dist-bin/osk-bundle.cjs --minify --define:__BUILD_VERSION__="\"$PKG_VERSION\""
+
+      - name: Build binaries
+        shell: bash
+        env:
+          BUILD_TARGETS: ${{ matrix.targets }}
+        run: |
+          IFS=',' read -ra TARGETS <<< "$BUILD_TARGETS"
+          for target in "${TARGETS[@]}"; do
+            os=$(echo $target | cut -d'-' -f2)
+            arch=$(echo $target | cut -d'-' -f3)
+            ext=""
+            if [ "$os" = "win" ]; then ext=".exe"; fi
+            output="dist-bin/osk-${os}-${arch}${ext}"
+            echo "Building $output..."
+            npx @yao-pkg/pkg dist-bin/osk-bundle.cjs --target $target --output $output
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.os }}
+          path: dist-bin/osk-*
+          if-no-files-found: error
+
+  # Publish to npm
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: [validate, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update package.json version
+        env:
+          VERSION_NUMBER: ${{ needs.validate.outputs.version_number }}
+        run: npm version "$VERSION_NUMBER" --no-git-tag-version --allow-same-version
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Upload binaries to existing GitHub Release
+  upload-assets:
+    name: Upload Release Assets
+    runs-on: ubuntu-latest
+    needs: [validate, build-binaries, publish-npm]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find artifacts -name 'osk-*' -type f -exec cp {} release/ \;
+          cd release
+          sha256sum osk-* > checksums.txt
+          echo "Release files:"
+          ls -la
+          echo ""
+          echo "Checksums:"
+          cat checksums.txt
+
+      - name: Upload binaries to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          cd release
+          for file in osk-* checksums.txt; do
+            echo "Uploading $file..."
+            gh release upload "$TAG_NAME" "$file" --clobber
+          done
+
+      - name: Update release body with install instructions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Get current release body
+          CURRENT_BODY=$(gh release view "$TAG_NAME" --json body -q .body)
+
+          # Append install instructions
+          INSTALL_INSTRUCTIONS=$(cat << 'EOF'
+
+          ---
+
+          ## Installation
+
+          ### npm (recommended)
+          ```bash
+          npm install -g openskill
+          ```
+
+          ### npx (no install needed)
+          ```bash
+          npx openskill --help
+          ```
+
+          ### Standalone binaries
+
+          | Platform | Architecture | File |
+          |----------|--------------|------|
+          | macOS | Apple Silicon (M1/M2/M3) | `osk-macos-arm64` |
+          | macOS | Intel | `osk-macos-x64` |
+          | Linux | x64 | `osk-linux-x64` |
+          | Linux | ARM64 | `osk-linux-arm64` |
+          | Windows | x64 | `osk-win-x64.exe` |
+
+          #### macOS / Linux
+          ```bash
+          # Download (replace with your platform)
+          curl -L -o osk https://github.com/$REPO/releases/download/$TAG_NAME/osk-macos-arm64
+          chmod +x osk
+          sudo mv osk /usr/local/bin/
+          ```
+
+          #### Verify
+          ```bash
+          osk version
+          ```
+          EOF
+          )
+
+          # Combine and update
+          UPDATED_BODY="${CURRENT_BODY}${INSTALL_INSTRUCTIONS}"
+          gh release edit "$TAG_NAME" --notes "$UPDATED_BODY"

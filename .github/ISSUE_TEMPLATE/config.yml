@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/vudknguyen/openskill#readme
+    about: Check the README for usage and documentation
+  - name: Discussions
+    url: https://github.com/vudknguyen/openskill/discussions
+    about: Ask questions and discuss ideas

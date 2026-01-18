@@ -1,0 +1,24 @@
+# Build outputs
+dist/
+dist-bin/
+
+# Dependencies
+node_modules/
+
+# Coverage
+coverage/
+
+# Cache
+.npm/
+*.tgz
+
+# IDE
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Package lock (formatted by npm)
+package-lock.json

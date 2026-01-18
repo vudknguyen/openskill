@@ -1,0 +1,79 @@
+{
+  "name": "openskill",
+  "version": "0.1.0",
+  "description": "Agent-agnostic skill manager for AI coding agents (Claude Code, Cursor, Codex, Antigravity)",
+  "type": "module",
+  "main": "./dist/cli/index.js",
+  "bin": {
+    "openskill": "./dist/cli/index.js",
+    "osk": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist/cli",
+    "dist/core",
+    "dist/agents",
+    "dist/utils",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:binaries": "npm run build && node scripts/build-binaries.mjs",
+    "dev": "tsc --watch",
+    "start": "node dist/cli/index.js",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run format:check && npm run build && npm test -- --run",
+    "test": "vitest",
+    "prepublishOnly": "npm run check",
+    "prerelease": "npm run check",
+    "release:patch": "npm run prerelease && npm version patch && git push",
+    "release:minor": "npm run prerelease && npm version minor && git push",
+    "release:major": "npm run prerelease && npm version major && git push"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "skills",
+    "claude",
+    "claude-code",
+    "codex",
+    "cursor",
+    "antigravity",
+    "cli",
+    "skill-manager"
+  ],
+  "author": "Vu Nguyen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vudknguyen/openskill.git"
+  },
+  "homepage": "https://github.com/vudknguyen/openskill#readme",
+  "bugs": {
+    "url": "https://github.com/vudknguyen/openskill/issues"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
+    "commander": "^12.1.0",
+    "gray-matter": "^4.0.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^22.9.0",
+    "@yao-pkg/pkg": "^6.12.0",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.0",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.53.0",
+    "vitest": "^2.1.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
