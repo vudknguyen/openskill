@@ -204,8 +204,8 @@ describe("isValidGitHubUrl (legacy)", () => {
 
 describe("safeJoinPath", () => {
   it("joins paths within base directory", () => {
-    expect(safeJoinPath("/base", "subdir")).toBe("/base/subdir");
-    expect(safeJoinPath("/base", "a/b/c")).toBe("/base/a/b/c");
+    expect(safeJoinPath("/base", "subdir")).toBe(join("/base", "subdir"));
+    expect(safeJoinPath("/base", "a/b/c")).toBe(join("/base", "a", "b", "c"));
   });
 
   it("returns null for path traversal attempts", () => {
@@ -216,7 +216,7 @@ describe("safeJoinPath", () => {
   it("handles paths starting with slash (path.join normalizes them)", () => {
     // Note: path.join("/base", "/absolute") = "/base/absolute" on POSIX
     // This is within the base, so it's valid
-    expect(safeJoinPath("/base", "/subdir")).toBe("/base/subdir");
+    expect(safeJoinPath("/base", "/subdir")).toBe(join("/base", "subdir"));
   });
 });
 

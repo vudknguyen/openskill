@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { join } from "path";
 
 // Mock the config module
 vi.mock("../core/config.js", () => ({
@@ -147,15 +148,15 @@ describe("saveManifest", () => {
 
     // Should write to temp file first
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
-      "/mock/config/manifest.json.tmp",
+      join("/mock/config", "manifest.json.tmp"),
       expect.any(String),
       "utf-8"
     );
 
     // Then rename atomically
     expect(mockedRenameSync).toHaveBeenCalledWith(
-      "/mock/config/manifest.json.tmp",
-      "/mock/config/manifest.json"
+      join("/mock/config", "manifest.json.tmp"),
+      join("/mock/config", "manifest.json")
     );
   });
 });

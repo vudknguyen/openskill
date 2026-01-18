@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import { join } from "path";
 
 // Mock the config module
 vi.mock("../core/config.js", () => ({
@@ -22,7 +23,12 @@ vi.mock("child_process", () => ({
 // Mock fs utility functions
 vi.mock("../utils/fs.js", () => ({
   ensureDir: vi.fn(),
-  isPathWithin: vi.fn((parent: string, child: string) => child.startsWith(parent)),
+  isPathWithin: vi.fn((parent: string, child: string) => {
+    // Normalize path separators for cross-platform comparison
+    const normalizedParent = parent.replace(/[\\/]/g, "/");
+    const normalizedChild = child.replace(/[\\/]/g, "/");
+    return normalizedChild.startsWith(normalizedParent);
+  }),
   isValidRepoPathName: vi.fn(
     (name: string) => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name) && name.length <= 100
   ),
@@ -61,7 +67,7 @@ describe("cloneRepo", () => {
     const result = await cloneRepo("owner", "repo");
 
     expect(result.success).toBe(true);
-    expect(result.path).toBe("/mock/cache/skills/owner-repo");
+    expect(result.path).toBe(join("/mock/cache/skills", "owner-repo"));
   });
 
   it("clones repo if not already cached", async () => {
@@ -86,7 +92,7 @@ describe("cloneRepo", () => {
         "--depth",
         "1",
         "https://github.com/owner/repo.git",
-        "/mock/cache/skills/owner-repo",
+        join("/mock/cache/skills", "owner-repo"),
       ],
       expect.any(Object)
     );
@@ -228,7 +234,7 @@ describe("getCachedRepoPath", () => {
 
     const result = getCachedRepoPath("owner", "repo");
 
-    expect(result).toBe("/mock/cache/skills/owner-repo");
+    expect(result).toBe(join("/mock/cache/skills", "owner-repo"));
   });
 
   it("returns null if repo is not cached", () => {
