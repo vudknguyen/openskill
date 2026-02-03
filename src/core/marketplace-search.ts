@@ -1,4 +1,5 @@
 import { loadAuth } from "./auth.js";
+import { loadConfig } from "./config.js";
 import { validateServerUrl } from "../utils/url.js";
 
 export interface MarketplaceSkillResult {
@@ -35,7 +36,7 @@ export async function searchMarketplace(
   options?: { server?: string; limit?: number },
 ): Promise<MarketplaceSkillResult[]> {
   const auth = loadAuth();
-  const serverUrl = validateServerUrl(options?.server || auth?.serverUrl || "http://localhost:3000");
+  const serverUrl = validateServerUrl(options?.server || auth?.serverUrl || loadConfig().serverUrl);
   const limit = options?.limit ?? 20;
 
   const params = new URLSearchParams({ q: query, limit: String(limit) });

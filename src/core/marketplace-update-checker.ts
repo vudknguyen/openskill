@@ -1,4 +1,5 @@
 import { loadAuth } from "./auth.js";
+import { loadConfig } from "./config.js";
 import type { InstalledSkillRecord } from "./manifest.js";
 import { validateServerUrl, skillApiPath } from "../utils/url.js";
 
@@ -36,7 +37,7 @@ export async function checkMarketplaceUpdates(
   },
 ): Promise<MarketplaceUpdate[]> {
   const auth = loadAuth();
-  const serverUrl = validateServerUrl(options?.server || auth?.serverUrl || "http://localhost:3000");
+  const serverUrl = validateServerUrl(options?.server || auth?.serverUrl || loadConfig().serverUrl);
   const updates: MarketplaceUpdate[] = [];
 
   for (let i = 0; i < skills.length; i++) {

@@ -8,7 +8,7 @@ import { InstallScope } from "../agents/types.js";
  * Config version for migration support.
  * Increment when config schema changes.
  */
-export const CONFIG_VERSION = 2;
+export const CONFIG_VERSION = 3;
 
 export interface RepoConfig {
   name: string;
@@ -26,6 +26,7 @@ export interface Config {
   version: number;
   defaultAgent: string;
   defaultScope: InstallScope;
+  serverUrl: string;
   repos: RepoConfig[];
   agents: Record<string, AgentConfig>;
 }
@@ -34,15 +35,24 @@ const DEFAULT_CONFIG: Config = {
   version: CONFIG_VERSION,
   defaultAgent: "claude",
   defaultScope: "project",
+  serverUrl: "http://localhost:3000",
   repos: [
-    {
-      name: "anthropic-official",
-      url: "https://github.com/anthropics/skills",
-    },
-    {
-      name: "openai-official",
-      url: "https://github.com/openai/skills",
-    },
+    { name: "anthropic-official", url: "https://github.com/anthropics/skills" },
+    { name: "openai-official", url: "https://github.com/openai/skills" },
+    { name: "vercel", url: "https://github.com/vercel-labs/agent-skills" },
+    { name: "vercel-next", url: "https://github.com/vercel-labs/next-skills" },
+    { name: "cloudflare", url: "https://github.com/cloudflare/skills" },
+    { name: "supabase", url: "https://github.com/supabase/agent-skills" },
+    { name: "google-stitch", url: "https://github.com/google-labs-code/stitch-skills" },
+    { name: "huggingface", url: "https://github.com/huggingface/skills" },
+    { name: "stripe", url: "https://github.com/stripe/ai" },
+    { name: "trailofbits", url: "https://github.com/trailofbits/skills" },
+    { name: "expo", url: "https://github.com/expo/skills" },
+    { name: "sentry", url: "https://github.com/getsentry/skills" },
+    { name: "better-auth", url: "https://github.com/better-auth/skills" },
+    { name: "tinybird", url: "https://github.com/tinybirdco/tinybird-agent-skills" },
+    { name: "neon", url: "https://github.com/neondatabase/agent-skills" },
+    { name: "dmmulroy-cloudflare", url: "https://github.com/dmmulroy/cloudflare-skill" },
   ],
   agents: {
     claude: { skillPath: ".claude/skills" },
@@ -132,6 +142,12 @@ export function loadConfig(): Config {
   const defaultScope: InstallScope =
     rawScope === "project" || rawScope === "global" ? rawScope : DEFAULT_CONFIG.defaultScope;
 
+  // Validate serverUrl
+  const serverUrl =
+    typeof rawConfig.serverUrl === "string"
+      ? rawConfig.serverUrl
+      : DEFAULT_CONFIG.serverUrl;
+
   // Validate agents
   const agents = { ...DEFAULT_CONFIG.agents };
   if (typeof rawConfig.agents === "object" && rawConfig.agents !== null) {
@@ -155,6 +171,7 @@ export function loadConfig(): Config {
     version,
     defaultAgent,
     defaultScope,
+    serverUrl,
     agents,
     repos,
   };
@@ -215,6 +232,17 @@ function migrateConfig(config: Config, _rawConfig: Record<string, unknown>): voi
     }
 
     config.version = 2;
+  }
+
+  // Migration from version 2 to version 3: add new default skill repos
+  if (config.version < 3) {
+    const existingUrls = new Set(config.repos.map((r) => r.url));
+    for (const repo of DEFAULT_CONFIG.repos) {
+      if (!existingUrls.has(repo.url)) {
+        config.repos.push(repo);
+      }
+    }
+    config.version = 3;
   }
 }
 

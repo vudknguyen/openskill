@@ -3,8 +3,7 @@ import { execFile } from "child_process";
 import { platform } from "os";
 import { logger, createSpinner } from "../utils/logger.js";
 import { loadAuth, saveAuth, type AuthData } from "../core/auth.js";
-
-const DEFAULT_SERVER_URL = "http://localhost:3000";
+import { loadConfig } from "../core/config.js";
 
 interface DeviceCodeResponse {
   device_code: string;
@@ -120,7 +119,7 @@ async function fetchUser(
 
 export const loginCommand = new Command("login")
   .description("Authenticate with the OpenSkill marketplace")
-  .option("-s, --server <url>", "Server URL", DEFAULT_SERVER_URL)
+  .option("-s, --server <url>", "Server URL", loadConfig().serverUrl)
   .option("--no-browser", "Don't open browser automatically")
   .addHelpText(
     "after",

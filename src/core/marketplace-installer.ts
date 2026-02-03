@@ -4,6 +4,7 @@ import { tmpdir } from "os";
 import * as tar from "tar";
 import { rmSync } from "fs";
 import { loadAuth } from "./auth.js";
+import { loadConfig } from "./config.js";
 import { loadSkillFromDir } from "./skill.js";
 import { addSkillRecord } from "./manifest.js";
 import { getAgent } from "../agents/index.js";
@@ -91,7 +92,7 @@ export async function installFromMarketplace(
   }
 ): Promise<void> {
   const auth = loadAuth();
-  const serverUrl = validateServerUrl(options.server || auth?.serverUrl || "http://localhost:3000");
+  const serverUrl = validateServerUrl(options.server || auth?.serverUrl || loadConfig().serverUrl);
 
   // 1. Fetch download metadata
   const fetchSpinner = createSpinner(`Fetching ${slug} from marketplace...`);
