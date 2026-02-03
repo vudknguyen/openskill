@@ -2,13 +2,11 @@ import { Command } from "commander";
 import { getValidAuth } from "../core/token-refresh.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { confirm } from "../utils/prompt.js";
-import { validateServerUrl, skillApiPath } from "../utils/url.js";
-
-interface StatusUpdateResponse {
-  success?: boolean;
-  status?: string;
-  error?: string;
-}
+import { validateServerUrl } from "../utils/url.js";
+import {
+  MarketplaceClient,
+  MarketplaceApiError,
+} from "../core/marketplace-client.js";
 
 export const publishCommand = new Command("publish")
   .description("Publish a draft skill to make it publicly available")
@@ -55,22 +53,12 @@ Examples:
       // 3. PATCH /api/skills/[slug] with status: "published"
       const spinner = createSpinner("Publishing...");
       try {
-        const res = await fetch(`${serverUrl}${skillApiPath(slug)}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.accessToken}`,
-          },
-          body: JSON.stringify({ status: "published" }),
-        });
-
-        const result = (await res.json()) as StatusUpdateResponse;
-
-        if (!res.ok) {
-          spinner.stop();
-          logger.error(result.error || `Server error (${res.status})`);
-          process.exit(1);
-        }
+        const client = new MarketplaceClient(serverUrl);
+        const result = await client.updateSkillStatus(
+          auth.accessToken,
+          slug,
+          "published",
+        );
 
         spinner.stop("Published");
         logger.newline();
@@ -78,9 +66,13 @@ Examples:
         logger.dim(`  ${serverUrl}/skills/${slug}`);
       } catch (err) {
         spinner.stop();
-        logger.error(
-          `Failed to publish: ${err instanceof Error ? err.message : String(err)}`
-        );
+        if (err instanceof MarketplaceApiError) {
+          logger.error(err.message);
+        } else {
+          logger.error(
+            `Failed to publish: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
         process.exit(1);
       }
     }

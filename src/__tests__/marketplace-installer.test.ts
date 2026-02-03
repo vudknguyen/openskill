@@ -109,7 +109,10 @@ describe("fetchMarketplaceSkill", () => {
     const result = await fetchMarketplaceSkill("https://example.com", "my-skill");
 
     expect(result).toEqual(metadata);
-    expect(fetch).toHaveBeenCalledWith("https://example.com/api/skills/my-skill/download");
+    expect(fetch).toHaveBeenCalledWith(
+      "https://example.com/api/skills/my-skill/download",
+      expect.objectContaining({ headers: expect.any(Object) }),
+    );
   });
 
   it("includes version query parameter when provided", async () => {
@@ -125,6 +128,7 @@ describe("fetchMarketplaceSkill", () => {
 
     expect(fetch).toHaveBeenCalledWith(
       "https://example.com/api/skills/my-skill/download?version=2.0.0",
+      expect.objectContaining({ headers: expect.any(Object) }),
     );
   });
 
@@ -312,6 +316,7 @@ describe("installFromMarketplace", () => {
     // First fetch call should use custom server
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining("https://custom.server.com"),
+      expect.any(Object),
     );
   });
 

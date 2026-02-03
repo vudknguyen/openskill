@@ -1,6 +1,8 @@
 import { Command } from "commander";
 import { logger } from "../utils/logger.js";
 import { loadAuth, clearAuth } from "../core/auth.js";
+import { MarketplaceClient } from "../core/marketplace-client.js";
+import { validateServerUrl } from "../utils/url.js";
 
 export const logoutCommand = new Command("logout")
   .description("Log out from the OpenSkill marketplace")
@@ -21,15 +23,8 @@ Examples:
 
     // Best-effort server-side revocation of refresh token
     if (auth.refreshToken) {
-      try {
-        await fetch(`${auth.serverUrl}/api/auth/revoke`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: auth.refreshToken }),
-        });
-      } catch {
-        // Ignore — clearing local auth is sufficient
-      }
+      const client = new MarketplaceClient(validateServerUrl(auth.serverUrl));
+      await client.revokeToken(auth.refreshToken);
     }
 
     clearAuth();

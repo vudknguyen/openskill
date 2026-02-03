@@ -1,12 +1,6 @@
 import { loadAuth, saveAuth, clearAuth, type AuthData } from "./auth.js";
-
-interface RefreshResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  expires_in: number;
-  refresh_expires_in?: number;
-}
+import { MarketplaceClient, MarketplaceApiError } from "./marketplace-client.js";
+import { validateServerUrl } from "../utils/url.js";
 
 /**
  * Return valid auth data, auto-refreshing the access token if expired.
@@ -33,19 +27,8 @@ export async function getValidAuth(): Promise<AuthData | null> {
   }
 
   try {
-    const res = await fetch(`${auth.serverUrl}/api/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: auth.refreshToken }),
-    });
-
-    if (!res.ok) {
-      // Refresh token invalid/expired — session over
-      clearAuth();
-      return null;
-    }
-
-    const data = (await res.json()) as RefreshResponse;
+    const client = new MarketplaceClient(validateServerUrl(auth.serverUrl));
+    const data = await client.refreshToken(auth.refreshToken);
 
     const expiresAt = new Date(
       Date.now() + data.expires_in * 1000
@@ -65,7 +48,11 @@ export async function getValidAuth(): Promise<AuthData | null> {
     saveAuth(updated);
 
     return updated;
-  } catch {
+  } catch (err) {
+    if (err instanceof MarketplaceApiError) {
+      // Refresh token invalid/expired — session over
+      clearAuth();
+    }
     // Network error — don't clear auth, let caller handle
     return null;
   }

@@ -4,34 +4,12 @@ import { platform } from "os";
 import { logger, createSpinner } from "../utils/logger.js";
 import { loadAuth, saveAuth, type AuthData } from "../core/auth.js";
 import { loadConfig } from "../core/config.js";
-
-interface DeviceCodeResponse {
-  device_code: string;
-  user_code: string;
-  verification_uri: string;
-  verification_uri_complete: string;
-  expires_in: number;
-  interval: number;
-}
-
-interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  expires_in: number;
-}
-
-interface TokenErrorResponse {
-  error: string;
-}
-
-interface MeResponse {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
-}
+import {
+  MarketplaceClient,
+  type DeviceCodeResponse,
+  type DeviceTokenResponse,
+  type DeviceTokenErrorResponse,
+} from "../core/marketplace-client.js";
 
 function openBrowser(url: string): void {
   // Validate URL format to prevent command injection
@@ -56,76 +34,37 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function requestDeviceCode(
-  serverUrl: string
-): Promise<DeviceCodeResponse> {
-  const res = await fetch(`${serverUrl}/api/auth/device/code`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_info: `osk/0.1.0 ${platform()}`,
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Server returned ${res.status}`);
-  }
-
-  return (await res.json()) as DeviceCodeResponse;
-}
-
 async function pollForToken(
-  serverUrl: string,
+  client: MarketplaceClient,
   deviceCode: string,
   interval: number,
   expiresIn: number
-): Promise<TokenResponse> {
+): Promise<DeviceTokenResponse> {
   const deadline = Date.now() + expiresIn * 1000;
 
   while (Date.now() < deadline) {
     await sleep(interval * 1000);
 
-    const res = await fetch(`${serverUrl}/api/auth/device/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ device_code: deviceCode }),
-    });
+    const body = await client.pollDeviceToken(deviceCode);
 
-    const body = (await res.json()) as TokenResponse | TokenErrorResponse;
-
-    if (res.ok && "access_token" in body) {
-      return body;
+    if ("access_token" in body) {
+      return body as DeviceTokenResponse;
     }
 
     if ("error" in body) {
-      if (body.error === "authorization_pending") {
+      const err = body as DeviceTokenErrorResponse;
+      if (err.error === "authorization_pending") {
         continue;
       }
-      if (body.error === "slow_down") {
+      if (err.error === "slow_down") {
         interval += 5;
         continue;
       }
-      throw new Error(body.error);
+      throw new Error(err.error);
     }
   }
 
   throw new Error("expired_token");
-}
-
-async function fetchUser(
-  serverUrl: string,
-  token: string
-): Promise<MeResponse["user"]> {
-  const res = await fetch(`${serverUrl}/api/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch user (${res.status})`);
-  }
-
-  const body = (await res.json()) as MeResponse;
-  return body.user;
 }
 
 export const loginCommand = new Command("login")
@@ -153,10 +92,12 @@ Examples:
       return;
     }
 
+    const client = new MarketplaceClient(serverUrl);
+
     // Step 1: Request device code
     let deviceData: DeviceCodeResponse;
     try {
-      deviceData = await requestDeviceCode(serverUrl);
+      deviceData = await client.requestDeviceCode(`osk/0.1.0 ${platform()}`);
     } catch (err) {
       logger.error(
         `Failed to connect to ${serverUrl}: ${err instanceof Error ? err.message : "Unknown error"}`
@@ -197,7 +138,7 @@ Examples:
     const spinner = createSpinner("Waiting for approval...");
     try {
       const tokenData = await pollForToken(
-        serverUrl,
+        client,
         deviceData.device_code,
         deviceData.interval,
         deviceData.expires_in
@@ -205,7 +146,7 @@ Examples:
       spinner.stop("Approved");
 
       // Step 4: Fetch user info
-      const user = await fetchUser(serverUrl, tokenData.access_token);
+      const user = await client.fetchCurrentUser(tokenData.access_token);
 
       // Step 5: Save auth (access token expires in expires_in seconds, refresh in 90 days)
       const expiresAt = new Date(

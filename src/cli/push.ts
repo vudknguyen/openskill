@@ -7,25 +7,12 @@ import { parseSkillMd } from "../utils/markdown.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { confirm } from "../utils/prompt.js";
 import { validateServerUrl } from "../utils/url.js";
-
-interface PushInitResponse {
-  uploadUrl?: string;
-  uploadKey?: string;
-  unchanged?: boolean;
-  slug?: string;
-  version?: string;
-  name?: string;
-  error?: string;
-}
-
-interface PushCompleteResponse {
-  success: boolean;
-  slug: string;
-  version: string;
-  name: string;
-  error?: string;
-  details?: string[];
-}
+import {
+  MarketplaceClient,
+  MarketplaceApiError,
+  type PushInitResponse,
+  type PushCompleteResponse,
+} from "../core/marketplace-client.js";
 
 export const pushCommand = new Command("push")
   .description("Push a skill version to the OpenSkill marketplace (as draft)")
@@ -128,35 +115,23 @@ Examples:
         }
       }
 
+      const client = new MarketplaceClient(serverUrl);
+
       // 8. POST /api/skills/publish/init
       const initSpinner = createSpinner("Initializing...");
       let initResult: PushInitResponse;
       try {
-        const res = await fetch(`${serverUrl}/api/skills/publish/init`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.accessToken}`,
-          },
-          body: JSON.stringify({
-            slug,
-            fileHash,
-            fileSize: buffer.length,
-            category: options.category,
-            shortDescription: options.shortDesc,
-            tags: options.tags,
-            pricingType: "free",
-            changelog: options.changelog,
-          }),
+        initResult = await client.initPublish(auth.accessToken, {
+          slug,
+          fileHash,
+          fileSize: buffer.length,
+          category: options.category,
+          shortDescription: options.shortDesc,
+          tags: options.tags,
+          pricingType: "free",
+          changelog: options.changelog,
         });
 
-        initResult = (await res.json()) as PushInitResponse;
-
-        if (!res.ok) {
-          initSpinner.stop();
-          logger.error(initResult.error || `Server error (${res.status})`);
-          process.exit(1);
-        }
         if (initResult.unchanged) {
           initSpinner.stop("No changes");
           logger.newline();
@@ -172,16 +147,20 @@ Examples:
         initSpinner.stop("Initialized");
       } catch (err) {
         initSpinner.stop();
-        logger.error(
-          `Failed to connect to server: ${err instanceof Error ? err.message : String(err)}`
-        );
+        if (err instanceof MarketplaceApiError) {
+          logger.error(err.message);
+        } else {
+          logger.error(
+            `Failed to connect to server: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
         process.exit(1);
       }
 
-      // 9. PUT to presigned S3 URL
+      // 9. PUT to presigned S3 URL (not a marketplace API call)
       const uploadSpinner = createSpinner("Uploading package...");
       try {
-        const uploadRes = await fetch(initResult.uploadUrl, {
+        const uploadRes = await fetch(initResult.uploadUrl!, {
           method: "PUT",
           headers: {
             "Content-Type": "application/gzip",
@@ -207,35 +186,15 @@ Examples:
       // 10. POST /api/skills/publish/complete
       const completeSpinner = createSpinner("Finalizing...");
       try {
-        const res = await fetch(`${serverUrl}/api/skills/publish/complete`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.accessToken}`,
-          },
-          body: JSON.stringify({
-            uploadKey: initResult.uploadKey,
-            slug,
-            fileHash,
-            // Pass metadata again for skill creation
-            category: options.category,
-            shortDescription: options.shortDesc,
-            tags: options.tags,
-            changelog: options.changelog,
-          }),
+        const result = await client.completePublish(auth.accessToken, {
+          uploadKey: initResult.uploadKey!,
+          slug,
+          fileHash,
+          category: options.category,
+          shortDescription: options.shortDesc,
+          tags: options.tags,
+          changelog: options.changelog,
         });
-
-        const result = (await res.json()) as PushCompleteResponse;
-
-        if (!res.ok) {
-          completeSpinner.stop();
-          if (result.details && Array.isArray(result.details)) {
-            logger.error(`${result.error}: ${result.details.join(", ")}`);
-          } else {
-            logger.error(result.error || `Server error (${res.status})`);
-          }
-          process.exit(1);
-        }
 
         completeSpinner.stop("Pushed");
         logger.newline();
@@ -245,9 +204,18 @@ Examples:
         logger.dim("Run 'osk publish <slug>' to make it public.");
       } catch (err) {
         completeSpinner.stop();
-        logger.error(
-          `Finalization failed: ${err instanceof Error ? err.message : String(err)}`
-        );
+        if (err instanceof MarketplaceApiError) {
+          const body = err.body as PushCompleteResponse | undefined;
+          if (body?.details && Array.isArray(body.details)) {
+            logger.error(`${err.message}: ${body.details.join(", ")}`);
+          } else {
+            logger.error(err.message);
+          }
+        } else {
+          logger.error(
+            `Finalization failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
         process.exit(1);
       }
     }

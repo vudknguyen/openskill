@@ -1,6 +1,4 @@
-import { loadAuth } from "./auth.js";
-import { loadConfig } from "./config.js";
-import { validateServerUrl } from "../utils/url.js";
+import { createMarketplaceClient } from "./marketplace-client.js";
 
 export interface MarketplaceSkillResult {
   slug: string;
@@ -12,21 +10,6 @@ export interface MarketplaceSkillResult {
   avgRating: string | null;
 }
 
-interface MarketplaceSearchResponse {
-  skills: Array<{
-    skill: {
-      slug: string;
-      name: string;
-      description: string;
-      shortDescription: string | null;
-      installCount: number;
-      avgRating: string | null;
-    };
-    author: { name: string } | null;
-  }>;
-  pagination: { total: number };
-}
-
 /**
  * Search the OpenSkill marketplace API.
  * Public endpoint — no auth required.
@@ -35,18 +18,8 @@ export async function searchMarketplace(
   query: string,
   options?: { server?: string; limit?: number },
 ): Promise<MarketplaceSkillResult[]> {
-  const auth = loadAuth();
-  const serverUrl = validateServerUrl(options?.server || auth?.serverUrl || loadConfig().serverUrl);
-  const limit = options?.limit ?? 20;
-
-  const params = new URLSearchParams({ q: query, limit: String(limit) });
-  const res = await fetch(`${serverUrl}/api/skills?${params}`);
-
-  if (!res.ok) {
-    throw new Error(`Marketplace search failed (${res.status})`);
-  }
-
-  const data = (await res.json()) as MarketplaceSearchResponse;
+  const client = createMarketplaceClient(options?.server);
+  const data = await client.searchSkills(query, options?.limit);
 
   return data.skills.map(({ skill, author }) => ({
     slug: skill.slug,

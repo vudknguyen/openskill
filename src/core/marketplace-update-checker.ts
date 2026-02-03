@@ -1,7 +1,5 @@
-import { loadAuth } from "./auth.js";
-import { loadConfig } from "./config.js";
 import type { InstalledSkillRecord } from "./manifest.js";
-import { validateServerUrl, skillApiPath } from "../utils/url.js";
+import { createMarketplaceClient, type MarketplaceClient } from "./marketplace-client.js";
 
 export interface MarketplaceUpdate {
   slug: string;
@@ -10,18 +8,6 @@ export interface MarketplaceUpdate {
   currentHash: string;
   latestHash: string;
   changelog: string | null;
-}
-
-interface VersionEntry {
-  version: string;
-  fileHash: string | null;
-  changelog: string | null;
-  isLatest: boolean;
-}
-
-interface VersionsResponse {
-  versions: VersionEntry[];
-  error?: string;
 }
 
 /**
@@ -36,8 +22,7 @@ export async function checkMarketplaceUpdates(
     onProgress?: (checked: number, total: number) => void;
   },
 ): Promise<MarketplaceUpdate[]> {
-  const auth = loadAuth();
-  const serverUrl = validateServerUrl(options?.server || auth?.serverUrl || loadConfig().serverUrl);
+  const client: MarketplaceClient = createMarketplaceClient(options?.server);
   const updates: MarketplaceUpdate[] = [];
 
   for (let i = 0; i < skills.length; i++) {
@@ -48,10 +33,7 @@ export async function checkMarketplaceUpdates(
     if (!slug) continue;
 
     try {
-      const res = await fetch(`${serverUrl}${skillApiPath(slug, "versions")}`);
-      if (!res.ok) continue;
-
-      const data = (await res.json()) as VersionsResponse;
+      const data = await client.getSkillVersions(slug);
       if (!data.versions || data.versions.length === 0) continue;
 
       const latest = data.versions.find((v) => v.isLatest) ?? data.versions[0];
@@ -72,7 +54,7 @@ export async function checkMarketplaceUpdates(
         });
       }
     } catch {
-      // Network error for this skill — skip silently
+      // Network error or API error for this skill — skip silently
     }
   }
 

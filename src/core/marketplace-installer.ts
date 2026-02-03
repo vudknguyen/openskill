@@ -2,21 +2,17 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join, resolve, relative } from "path";
 import { tmpdir } from "os";
 import * as tar from "tar";
-import { loadAuth } from "./auth.js";
-import { loadConfig } from "./config.js";
 import { loadSkillFromDir } from "./skill.js";
 import { addSkillRecord } from "./manifest.js";
 import { getAgent } from "../agents/index.js";
 import type { InstallScope } from "../agents/types.js";
 import { logger, createSpinner } from "../utils/logger.js";
-import { validateServerUrl, skillApiPath } from "../utils/url.js";
+import {
+  createMarketplaceClient,
+  type DownloadMetadata,
+} from "./marketplace-client.js";
 
-interface DownloadMetadata {
-  downloadUrl: string;
-  version: string;
-  fileHash: string | null;
-  fileSize: number | null;
-}
+export type { DownloadMetadata };
 
 /**
  * Fetch download metadata from the marketplace API.
@@ -27,21 +23,8 @@ export async function fetchMarketplaceSkill(
   slug: string,
   version?: string
 ): Promise<DownloadMetadata> {
-  const path = skillApiPath(slug, "download");
-  const url = version
-    ? `${serverUrl}${path}?version=${encodeURIComponent(version)}`
-    : `${serverUrl}${path}`;
-
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    throw new Error(
-      (body.error as string) || `Server returned ${res.status}`
-    );
-  }
-
-  return (await res.json()) as DownloadMetadata;
+  const client = createMarketplaceClient(serverUrl);
+  return client.getSkillDownload(slug, version);
 }
 
 /**
@@ -51,7 +34,7 @@ async function downloadAndExtract(
   downloadUrl: string,
   targetDir: string
 ): Promise<void> {
-  // Download tar.gz to temp file
+  // Download tar.gz to temp file (S3 presigned URL — not a marketplace API call)
   const res = await fetch(downloadUrl);
   if (!res.ok) {
     throw new Error(`Download failed (${res.status})`);
@@ -97,14 +80,13 @@ export async function installFromMarketplace(
     server?: string;
   }
 ): Promise<void> {
-  const auth = loadAuth();
-  const serverUrl = validateServerUrl(options.server || auth?.serverUrl || loadConfig().serverUrl);
+  const client = createMarketplaceClient(options.server);
 
   // 1. Fetch download metadata
   const fetchSpinner = createSpinner(`Fetching ${slug} from marketplace...`);
   let metadata: DownloadMetadata;
   try {
-    metadata = await fetchMarketplaceSkill(serverUrl, slug, options.version);
+    metadata = await client.getSkillDownload(slug, options.version);
     fetchSpinner.stop(`Found ${slug}@${metadata.version}`);
   } catch (err) {
     fetchSpinner.stop();
