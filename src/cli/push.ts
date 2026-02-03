@@ -157,23 +157,10 @@ Examples:
         process.exit(1);
       }
 
-      // 9. PUT to presigned S3 URL (not a marketplace API call)
+      // 9. PUT to presigned S3 URL
       const uploadSpinner = createSpinner("Uploading package...");
       try {
-        const uploadRes = await fetch(initResult.uploadUrl!, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/gzip",
-            "Content-Length": buffer.length.toString(),
-          },
-          body: buffer,
-        });
-
-        if (!uploadRes.ok) {
-          uploadSpinner.stop();
-          logger.error(`Upload failed (${uploadRes.status})`);
-          process.exit(1);
-        }
+        await client.uploadToPresignedUrl(initResult.uploadUrl!, buffer);
         uploadSpinner.stop("Uploaded");
       } catch (err) {
         uploadSpinner.stop();

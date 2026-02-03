@@ -1,13 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock auth module
-vi.mock("../core/auth.js", () => ({
-  loadAuth: vi.fn(),
-}));
+// Mock marketplace client
+const { mockGetSkillDownload, mockDownloadFromPresignedUrl, mockCreateMarketplaceClient } = vi.hoisted(() => {
+  const mockGetSkillDownload = vi.fn();
+  const mockDownloadFromPresignedUrl = vi.fn();
+  return {
+    mockGetSkillDownload,
+    mockDownloadFromPresignedUrl,
+    mockCreateMarketplaceClient: vi.fn().mockReturnValue({
+      getSkillDownload: mockGetSkillDownload,
+      downloadFromPresignedUrl: mockDownloadFromPresignedUrl,
+    }),
+  };
+});
 
-// Mock config module
-vi.mock("../core/config.js", () => ({
-  loadConfig: vi.fn(),
+vi.mock("../core/marketplace-client.js", () => ({
+  createMarketplaceClient: mockCreateMarketplaceClient,
 }));
 
 // Mock skill module
@@ -34,15 +42,6 @@ vi.mock("../utils/logger.js", () => ({
   })),
 }));
 
-// Mock url utilities
-vi.mock("../utils/url.js", () => ({
-  validateServerUrl: vi.fn((url: string) => url),
-  skillApiPath: vi.fn((slug: string, ...segments: string[]) => {
-    const suffix = segments.length > 0 ? `/${segments.join("/")}` : "";
-    return `/api/skills/${slug}${suffix}`;
-  }),
-}));
-
 // Mock fs
 vi.mock("fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs")>();
@@ -66,8 +65,6 @@ vi.mock("tar", () => ({
   extract: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { loadAuth } from "../core/auth.js";
-import { loadConfig } from "../core/config.js";
 import { loadSkillFromDir } from "../core/skill.js";
 import { addSkillRecord } from "../core/manifest.js";
 import { getAgent } from "../agents/index.js";
@@ -77,8 +74,6 @@ import {
   installFromMarketplace,
 } from "../core/marketplace-installer.js";
 
-const mockLoadAuth = vi.mocked(loadAuth);
-const mockLoadConfig = vi.mocked(loadConfig);
 const mockLoadSkillFromDir = vi.mocked(loadSkillFromDir);
 const mockAddSkillRecord = vi.mocked(addSkillRecord);
 const mockGetAgent = vi.mocked(getAgent);
@@ -86,119 +81,49 @@ const mockRmSync = vi.mocked(rmSync);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.restoreAllMocks();
 });
 
 describe("fetchMarketplaceSkill", () => {
-  it("fetches metadata from the marketplace API", async () => {
+  it("delegates to client.getSkillDownload and returns metadata", async () => {
     const metadata = {
       downloadUrl: "https://cdn.example.com/skill.tar.gz",
       version: "1.0.0",
       fileHash: "abc123",
       fileSize: 4096,
     };
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(metadata),
-      }),
-    );
+    mockGetSkillDownload.mockResolvedValue(metadata);
 
     const result = await fetchMarketplaceSkill("https://example.com", "my-skill");
 
     expect(result).toEqual(metadata);
-    expect(fetch).toHaveBeenCalledWith(
-      "https://example.com/api/skills/my-skill/download",
-      expect.objectContaining({ headers: expect.any(Object) }),
-    );
+    expect(mockCreateMarketplaceClient).toHaveBeenCalledWith("https://example.com");
+    expect(mockGetSkillDownload).toHaveBeenCalledWith("my-skill", undefined);
   });
 
-  it("includes version query parameter when provided", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ downloadUrl: "", version: "2.0.0", fileHash: null, fileSize: null }),
-      }),
-    );
+  it("passes version to client.getSkillDownload", async () => {
+    mockGetSkillDownload.mockResolvedValue({
+      downloadUrl: "",
+      version: "2.0.0",
+      fileHash: null,
+      fileSize: null,
+    });
 
     await fetchMarketplaceSkill("https://example.com", "my-skill", "2.0.0");
 
-    expect(fetch).toHaveBeenCalledWith(
-      "https://example.com/api/skills/my-skill/download?version=2.0.0",
-      expect.objectContaining({ headers: expect.any(Object) }),
-    );
+    expect(mockGetSkillDownload).toHaveBeenCalledWith("my-skill", "2.0.0");
   });
 
-  it("throws with server error message when response is not ok", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-        json: () => Promise.resolve({ error: "Skill not found" }),
-      }),
-    );
+  it("throws with server error message when client throws", async () => {
+    mockGetSkillDownload.mockRejectedValue(new Error("Skill not found"));
 
     await expect(
       fetchMarketplaceSkill("https://example.com", "nonexistent"),
     ).rejects.toThrow("Skill not found");
   });
-
-  it("throws with status code when error body has no message", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({}),
-      }),
-    );
-
-    await expect(
-      fetchMarketplaceSkill("https://example.com", "my-skill"),
-    ).rejects.toThrow("Server returned 500");
-  });
-
-  it("throws with status code when JSON parsing of error body fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 502,
-        json: () => Promise.reject(new Error("Invalid JSON")),
-      }),
-    );
-
-    await expect(
-      fetchMarketplaceSkill("https://example.com", "my-skill"),
-    ).rejects.toThrow("Server returned 502");
-  });
 });
 
 describe("installFromMarketplace", () => {
   function setupMocks() {
-    // Auth
-    mockLoadAuth.mockReturnValue({
-      accessToken: "test-token",
-      refreshToken: "test-refresh",
-      serverUrl: "https://marketplace.example.com",
-      createdAt: new Date().toISOString(),
-    });
-
-    // Config
-    mockLoadConfig.mockReturnValue({
-      version: 3,
-      defaultAgent: "claude",
-      defaultScope: "project",
-      serverUrl: "https://marketplace.example.com",
-      repos: [],
-      agents: {},
-    });
-
-    // Fetch metadata
     const metadata = {
       downloadUrl: "https://cdn.example.com/skill.tar.gz",
       version: "1.0.0",
@@ -206,20 +131,8 @@ describe("installFromMarketplace", () => {
       fileSize: 2048,
     };
 
-    // Download
-    const downloadArrayBuffer = new ArrayBuffer(8);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve(metadata),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          arrayBuffer: () => Promise.resolve(downloadArrayBuffer),
-        }),
-    );
+    mockGetSkillDownload.mockResolvedValue(metadata);
+    mockDownloadFromPresignedUrl.mockResolvedValue(Buffer.from("fake-tar-data"));
 
     // Skill loading
     mockLoadSkillFromDir.mockReturnValue({
@@ -255,9 +168,9 @@ describe("installFromMarketplace", () => {
 
     await installFromMarketplace("my-skill", {});
 
-    // Verify agent install was called
+    expect(mockGetSkillDownload).toHaveBeenCalledWith("my-skill", undefined);
+    expect(mockDownloadFromPresignedUrl).toHaveBeenCalledWith("https://cdn.example.com/skill.tar.gz");
     expect(mockAgent.installSkill).toHaveBeenCalled();
-    // Verify manifest record was added
     expect(mockAddSkillRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "my-skill",
@@ -308,40 +221,36 @@ describe("installFromMarketplace", () => {
     );
   });
 
-  it("uses custom server URL from options", async () => {
+  it("passes server override to createMarketplaceClient", async () => {
     setupMocks();
 
     await installFromMarketplace("my-skill", { server: "https://custom.server.com" });
 
-    // First fetch call should use custom server
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("https://custom.server.com"),
-      expect.any(Object),
-    );
+    expect(mockCreateMarketplaceClient).toHaveBeenCalledWith("https://custom.server.com");
+  });
+
+  it("passes version to client.getSkillDownload", async () => {
+    setupMocks();
+
+    await installFromMarketplace("my-skill", { version: "2.0.0" });
+
+    expect(mockGetSkillDownload).toHaveBeenCalledWith("my-skill", "2.0.0");
   });
 
   it("throws when metadata fetch fails", async () => {
-    mockLoadAuth.mockReturnValue(null);
-    mockLoadConfig.mockReturnValue({
-      version: 3,
-      defaultAgent: "claude",
-      defaultScope: "project",
-      serverUrl: "https://example.com",
-      repos: [],
-      agents: {},
-    });
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-        json: () => Promise.resolve({ error: "Not found" }),
-      }),
-    );
+    mockGetSkillDownload.mockRejectedValue(new Error("Not found"));
 
     await expect(installFromMarketplace("nonexistent", {})).rejects.toThrow(
       "Failed to find 'nonexistent' on marketplace",
+    );
+  });
+
+  it("throws when download fails", async () => {
+    setupMocks();
+    mockDownloadFromPresignedUrl.mockRejectedValue(new Error("Download failed (403)"));
+
+    await expect(installFromMarketplace("my-skill", {})).rejects.toThrow(
+      "Download failed (403)",
     );
   });
 
@@ -388,27 +297,14 @@ describe("installFromMarketplace", () => {
     );
   });
 
-  it("uses version hash as commitHash when fileHash is null", async () => {
+  it("uses version as commitHash when fileHash is null", async () => {
     setupMocks();
-    // Override fetch to return null fileHash
-    vi.stubGlobal(
-      "fetch",
-      vi.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              downloadUrl: "https://cdn.example.com/skill.tar.gz",
-              version: "2.0.0",
-              fileHash: null,
-              fileSize: null,
-            }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
-        }),
-    );
+    mockGetSkillDownload.mockResolvedValue({
+      downloadUrl: "https://cdn.example.com/skill.tar.gz",
+      version: "2.0.0",
+      fileHash: null,
+      fileSize: null,
+    });
 
     await installFromMarketplace("my-skill", {});
 
@@ -419,11 +315,10 @@ describe("installFromMarketplace", () => {
 
   it("cleans up temp directory even when install fails", async () => {
     setupMocks();
-    mockLoadSkillFromDir.mockReturnValue(null); // Will cause error
+    mockLoadSkillFromDir.mockReturnValue(null);
 
     await expect(installFromMarketplace("my-skill", {})).rejects.toThrow();
 
-    // rmSync should be called in the finally block
     expect(mockRmSync).toHaveBeenCalledWith(
       expect.stringContaining("/mock/tmp/osk-marketplace-my-skill-"),
       { recursive: true, force: true },
@@ -438,41 +333,6 @@ describe("installFromMarketplace", () => {
     expect(mockRmSync).toHaveBeenCalledWith(
       expect.stringContaining("/mock/tmp/osk-marketplace-my-skill-"),
       { recursive: true, force: true },
-    );
-  });
-
-  it("throws when download fails with non-ok response", async () => {
-    mockLoadAuth.mockReturnValue(null);
-    mockLoadConfig.mockReturnValue({
-      version: 3,
-      defaultAgent: "claude",
-      defaultScope: "project",
-      serverUrl: "https://example.com",
-      repos: [],
-      agents: {},
-    });
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              downloadUrl: "https://cdn.example.com/skill.tar.gz",
-              version: "1.0.0",
-              fileHash: "abc",
-              fileSize: 100,
-            }),
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 403,
-        }),
-    );
-
-    await expect(installFromMarketplace("my-skill", {})).rejects.toThrow(
-      "Download failed (403)",
     );
   });
 });

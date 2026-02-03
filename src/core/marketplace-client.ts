@@ -321,6 +321,31 @@ export class MarketplaceClient {
     }
     return body;
   }
+
+  // --- S3 presigned URL operations -----------------------------------------
+
+  async uploadToPresignedUrl(url: string, data: Buffer): Promise<void> {
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/gzip",
+        "Content-Length": data.length.toString(),
+      },
+      body: data,
+    });
+    if (!res.ok) {
+      throw new MarketplaceApiError(`Upload failed (${res.status})`, res.status);
+    }
+  }
+
+  async downloadFromPresignedUrl(url: string): Promise<Buffer> {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new MarketplaceApiError(`Download failed (${res.status})`, res.status);
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
 }
 
 // ---------------------------------------------------------------------------

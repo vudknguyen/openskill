@@ -424,6 +424,66 @@ describe("MarketplaceClient", () => {
     });
   });
 
+  // --- uploadToPresignedUrl ------------------------------------------------
+
+  describe("uploadToPresignedUrl", () => {
+    it("PUTs buffer to the given URL with gzip headers", async () => {
+      const fetcher = mockFetch({});
+      const client = new MarketplaceClient(SERVER);
+      const buf = Buffer.from("data");
+
+      await client.uploadToPresignedUrl("https://s3.example.com/upload", buf);
+
+      expect(fetcher).toHaveBeenCalledWith(
+        "https://s3.example.com/upload",
+        expect.objectContaining({
+          method: "PUT",
+          headers: expect.objectContaining({
+            "Content-Type": "application/gzip",
+            "Content-Length": "4",
+          }),
+          body: buf,
+        }),
+      );
+    });
+
+    it("throws MarketplaceApiError on non-ok response", async () => {
+      mockFetch({ ok: false, status: 403 });
+      const client = new MarketplaceClient(SERVER);
+
+      await expect(
+        client.uploadToPresignedUrl("https://s3.example.com/upload", Buffer.from("")),
+      ).rejects.toThrow("Upload failed (403)");
+    });
+  });
+
+  // --- downloadFromPresignedUrl --------------------------------------------
+
+  describe("downloadFromPresignedUrl", () => {
+    it("GETs the URL and returns a Buffer", async () => {
+      const data = new ArrayBuffer(8);
+      const fetcher = mockFetch({
+        arrayBuffer: () => Promise.resolve(data),
+      });
+      const client = new MarketplaceClient(SERVER);
+
+      const result = await client.downloadFromPresignedUrl("https://cdn.example.com/file.tar.gz");
+
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result.byteLength).toBe(8);
+      expect(fetcher).toHaveBeenCalledWith("https://cdn.example.com/file.tar.gz");
+    });
+
+    it("throws MarketplaceApiError on non-ok response", async () => {
+      mockFetch({ ok: false, status: 404 });
+      const client = new MarketplaceClient(SERVER);
+
+      await expect(
+        client.downloadFromPresignedUrl("https://cdn.example.com/missing"),
+      ).rejects.toThrow("Download failed (404)");
+    });
+  });
+
   // --- MarketplaceApiError -------------------------------------------------
 
   describe("MarketplaceApiError", () => {

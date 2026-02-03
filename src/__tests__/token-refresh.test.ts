@@ -7,7 +7,26 @@ vi.mock("../core/auth.js", () => ({
   clearAuth: vi.fn(),
 }));
 
+// Mock url utilities
+vi.mock("../utils/url.js", () => ({
+  validateServerUrl: vi.fn((url: string) => url),
+}));
+
+// Mock marketplace client
+const mockRefreshToken = vi.fn();
+
+vi.mock("../core/marketplace-client.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../core/marketplace-client.js")>();
+  return {
+    ...actual,
+    MarketplaceClient: vi.fn().mockImplementation(() => ({
+      refreshToken: mockRefreshToken,
+    })),
+  };
+});
+
 import { loadAuth, saveAuth, clearAuth } from "../core/auth.js";
+import { MarketplaceApiError } from "../core/marketplace-client.js";
 import { getValidAuth } from "../core/token-refresh.js";
 
 const mockLoadAuth = vi.mocked(loadAuth);
@@ -26,8 +45,7 @@ function makeAuth(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
-  vi.resetAllMocks();
-  vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 describe("getValidAuth", () => {
@@ -43,6 +61,7 @@ describe("getValidAuth", () => {
     const result = await getValidAuth();
     expect(result).toEqual(auth);
     expect(mockSaveAuth).not.toHaveBeenCalled();
+    expect(mockRefreshToken).not.toHaveBeenCalled();
   });
 
   it("clears and returns null when expired with no refresh token", async () => {
@@ -62,20 +81,12 @@ describe("getValidAuth", () => {
     });
     mockLoadAuth.mockReturnValue(auth as ReturnType<typeof loadAuth>);
 
-    const refreshResponse = {
+    mockRefreshToken.mockResolvedValue({
       access_token: "new-access-token",
       refresh_token: "new-refresh-token",
       token_type: "bearer",
       expires_in: 900,
-    };
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(refreshResponse),
-      })
-    );
+    });
 
     const result = await getValidAuth();
     expect(result).not.toBeNull();
@@ -85,18 +96,14 @@ describe("getValidAuth", () => {
     expect(mockClearAuth).not.toHaveBeenCalled();
   });
 
-  it("clears and returns null when refresh returns 401", async () => {
+  it("clears and returns null when refresh returns HTTP error", async () => {
     const auth = makeAuth({
       expiresAt: new Date(Date.now() - 1000).toISOString(),
     });
     mockLoadAuth.mockReturnValue(auth as ReturnType<typeof loadAuth>);
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-      })
+    mockRefreshToken.mockRejectedValue(
+      new MarketplaceApiError("Refresh failed (401)", 401),
     );
 
     const result = await getValidAuth();
@@ -110,13 +117,33 @@ describe("getValidAuth", () => {
     });
     mockLoadAuth.mockReturnValue(auth as ReturnType<typeof loadAuth>);
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("Network failure"))
-    );
+    mockRefreshToken.mockRejectedValue(new Error("Network failure"));
 
     const result = await getValidAuth();
     expect(result).toBeNull();
     expect(mockClearAuth).not.toHaveBeenCalled();
+  });
+
+  it("preserves refresh_expires_in when provided by server", async () => {
+    const auth = makeAuth({
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+    });
+    mockLoadAuth.mockReturnValue(auth as ReturnType<typeof loadAuth>);
+
+    mockRefreshToken.mockResolvedValue({
+      access_token: "new-at",
+      refresh_token: "new-rt",
+      token_type: "bearer",
+      expires_in: 900,
+      refresh_expires_in: 7776000, // 90 days
+    });
+
+    await getValidAuth();
+
+    const savedAuth = mockSaveAuth.mock.calls[0][0];
+    expect(savedAuth.refreshExpiresAt).toBeDefined();
+    // Should be ~90 days from now, not the original value
+    const refreshExpiry = new Date(savedAuth.refreshExpiresAt!).getTime();
+    expect(refreshExpiry).toBeGreaterThan(Date.now() + 7775000 * 1000);
   });
 });

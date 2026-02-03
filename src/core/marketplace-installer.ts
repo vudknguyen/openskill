@@ -9,6 +9,7 @@ import type { InstallScope } from "../agents/types.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import {
   createMarketplaceClient,
+  type MarketplaceClient,
   type DownloadMetadata,
 } from "./marketplace-client.js";
 
@@ -31,17 +32,11 @@ export async function fetchMarketplaceSkill(
  * Download a tar.gz from a presigned URL and extract to target directory.
  */
 async function downloadAndExtract(
+  client: MarketplaceClient,
   downloadUrl: string,
   targetDir: string
 ): Promise<void> {
-  // Download tar.gz to temp file (S3 presigned URL — not a marketplace API call)
-  const res = await fetch(downloadUrl);
-  if (!res.ok) {
-    throw new Error(`Download failed (${res.status})`);
-  }
-
-  const arrayBuffer = await res.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  const buffer = await client.downloadFromPresignedUrl(downloadUrl);
 
   // Extract to a temp dir first, then move to target
   const tempDir = join(tmpdir(), `osk-install-${Date.now()}`);
@@ -99,7 +94,7 @@ export async function installFromMarketplace(
   const downloadSpinner = createSpinner("Downloading package...");
   const tempSkillDir = join(tmpdir(), `osk-marketplace-${slug}-${Date.now()}`);
   try {
-    await downloadAndExtract(metadata.downloadUrl, tempSkillDir);
+    await downloadAndExtract(client, metadata.downloadUrl, tempSkillDir);
     downloadSpinner.stop("Downloaded");
 
     // 3. Load skill from extracted directory

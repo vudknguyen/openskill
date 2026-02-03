@@ -1,31 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock auth module
-vi.mock("../core/auth.js", () => ({
-  loadAuth: vi.fn(),
+// Mock marketplace client
+const { mockGetSkillVersions, mockCreateMarketplaceClient } = vi.hoisted(() => {
+  const mockGetSkillVersions = vi.fn();
+  return {
+    mockGetSkillVersions,
+    mockCreateMarketplaceClient: vi.fn().mockReturnValue({
+      getSkillVersions: mockGetSkillVersions,
+    }),
+  };
+});
+
+vi.mock("../core/marketplace-client.js", () => ({
+  createMarketplaceClient: mockCreateMarketplaceClient,
 }));
 
-// Mock config module
-vi.mock("../core/config.js", () => ({
-  loadConfig: vi.fn(),
-}));
-
-// Mock url utilities
-vi.mock("../utils/url.js", () => ({
-  validateServerUrl: vi.fn((url: string) => url),
-  skillApiPath: vi.fn((slug: string, ...segments: string[]) => {
-    const suffix = segments.length > 0 ? `/${segments.join("/")}` : "";
-    return `/api/skills/${slug}${suffix}`;
-  }),
-}));
-
-import { loadAuth } from "../core/auth.js";
-import { loadConfig } from "../core/config.js";
 import type { InstalledSkillRecord } from "../core/manifest.js";
-import { checkMarketplaceUpdates, type MarketplaceUpdate } from "../core/marketplace-update-checker.js";
-
-const mockLoadAuth = vi.mocked(loadAuth);
-const mockLoadConfig = vi.mocked(loadConfig);
+import { checkMarketplaceUpdates } from "../core/marketplace-update-checker.js";
 
 function makeSkillRecord(overrides: Partial<InstalledSkillRecord> = {}): InstalledSkillRecord {
   return {
@@ -42,34 +33,13 @@ function makeSkillRecord(overrides: Partial<InstalledSkillRecord> = {}): Install
   };
 }
 
-function makeVersionsResponse(versions: Array<{
-  version: string;
-  fileHash: string | null;
-  changelog: string | null;
-  isLatest: boolean;
-}>) {
-  return { versions };
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.restoreAllMocks();
-
-  mockLoadAuth.mockReturnValue(null);
-  mockLoadConfig.mockReturnValue({
-    version: 3,
-    defaultAgent: "claude",
-    defaultScope: "project",
-    serverUrl: "http://localhost:3000",
-    repos: [],
-    agents: {},
-  });
 });
 
 describe("checkMarketplaceUpdates", () => {
   it("returns empty array when no skills provided", async () => {
     const updates = await checkMarketplaceUpdates([]);
-
     expect(updates).toEqual([]);
   });
 
@@ -79,6 +49,7 @@ describe("checkMarketplaceUpdates", () => {
     const updates = await checkMarketplaceUpdates([skill]);
 
     expect(updates).toEqual([]);
+    expect(mockGetSkillVersions).not.toHaveBeenCalled();
   });
 
   it("detects update when latest hash differs from installed hash", async () => {
@@ -87,18 +58,12 @@ describe("checkMarketplaceUpdates", () => {
       marketplaceVersion: "1.0.0",
     });
 
-    const versionsResponse = makeVersionsResponse([
-      { version: "1.0.0", fileHash: "oldhash123", changelog: null, isLatest: false },
-      { version: "2.0.0", fileHash: "newhash456", changelog: "Bug fixes and improvements", isLatest: true },
-    ]);
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(versionsResponse),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [
+        { version: "1.0.0", fileHash: "oldhash123", changelog: null, isLatest: false },
+        { version: "2.0.0", fileHash: "newhash456", changelog: "Bug fixes and improvements", isLatest: true },
+      ],
+    });
 
     const updates = await checkMarketplaceUpdates([skill]);
 
@@ -117,106 +82,61 @@ describe("checkMarketplaceUpdates", () => {
       marketplaceVersion: "1.0.0",
     });
 
-    const versionsResponse = makeVersionsResponse([
-      { version: "1.0.0", fileHash: "samehash", changelog: null, isLatest: true },
-    ]);
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(versionsResponse),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [{ version: "1.0.0", fileHash: "samehash", changelog: null, isLatest: true }],
+    });
 
     const updates = await checkMarketplaceUpdates([skill]);
-
     expect(updates).toEqual([]);
   });
 
-  it("skips skill when API returns non-ok response", async () => {
+  it("skips skill when API throws", async () => {
     const skill = makeSkillRecord();
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-      }),
-    );
+    mockGetSkillVersions.mockRejectedValue(new Error("Failed to fetch versions (404)"));
 
     const updates = await checkMarketplaceUpdates([skill]);
-
     expect(updates).toEqual([]);
   });
 
   it("skips skill when versions array is empty", async () => {
     const skill = makeSkillRecord();
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ versions: [] }),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({ versions: [] });
 
     const updates = await checkMarketplaceUpdates([skill]);
-
     expect(updates).toEqual([]);
   });
 
   it("skips skill when versions field is missing", async () => {
     const skill = makeSkillRecord();
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({});
 
     const updates = await checkMarketplaceUpdates([skill]);
-
     expect(updates).toEqual([]);
   });
 
   it("skips skill when latest version has null fileHash", async () => {
     const skill = makeSkillRecord();
 
-    const versionsResponse = makeVersionsResponse([
-      { version: "2.0.0", fileHash: null, changelog: null, isLatest: true },
-    ]);
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(versionsResponse),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [{ version: "2.0.0", fileHash: null, changelog: null, isLatest: true }],
+    });
 
     const updates = await checkMarketplaceUpdates([skill]);
-
     expect(updates).toEqual([]);
   });
 
   it("falls back to first version when no version is marked isLatest", async () => {
     const skill = makeSkillRecord({ commitHash: "oldhash" });
 
-    const versionsResponse = makeVersionsResponse([
-      { version: "1.5.0", fileHash: "fallbackhash", changelog: "Fallback", isLatest: false },
-      { version: "1.0.0", fileHash: "oldhash", changelog: null, isLatest: false },
-    ]);
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(versionsResponse),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [
+        { version: "1.5.0", fileHash: "fallbackhash", changelog: "Fallback", isLatest: false },
+        { version: "1.0.0", fileHash: "oldhash", changelog: null, isLatest: false },
+      ],
+    });
 
     const updates = await checkMarketplaceUpdates([skill]);
 
@@ -229,13 +149,9 @@ describe("checkMarketplaceUpdates", () => {
   it("handles network errors gracefully by skipping the skill", async () => {
     const skill = makeSkillRecord();
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("Network failure")),
-    );
+    mockGetSkillVersions.mockRejectedValue(new Error("Network failure"));
 
     const updates = await checkMarketplaceUpdates([skill]);
-
     expect(updates).toEqual([]);
   });
 
@@ -259,47 +175,16 @@ describe("checkMarketplaceUpdates", () => {
       marketplaceVersion: "1.0.0",
     });
 
-    let callIndex = 0;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(() => {
-        callIndex++;
-        if (callIndex === 1) {
-          // skill-1: has update
-          return Promise.resolve({
-            ok: true,
-            json: () =>
-              Promise.resolve(
-                makeVersionsResponse([
-                  { version: "2.0.0", fileHash: "hash1-new", changelog: "Updated", isLatest: true },
-                ]),
-              ),
-          });
-        } else if (callIndex === 2) {
-          // skill-2: no update (same hash)
-          return Promise.resolve({
-            ok: true,
-            json: () =>
-              Promise.resolve(
-                makeVersionsResponse([
-                  { version: "2.0.0", fileHash: "hash2-current", changelog: null, isLatest: true },
-                ]),
-              ),
-          });
-        } else {
-          // skill-3: has update
-          return Promise.resolve({
-            ok: true,
-            json: () =>
-              Promise.resolve(
-                makeVersionsResponse([
-                  { version: "3.0.0", fileHash: "hash3-new", changelog: "Major update", isLatest: true },
-                ]),
-              ),
-          });
-        }
-      }),
-    );
+    mockGetSkillVersions
+      .mockResolvedValueOnce({
+        versions: [{ version: "2.0.0", fileHash: "hash1-new", changelog: "Updated", isLatest: true }],
+      })
+      .mockResolvedValueOnce({
+        versions: [{ version: "2.0.0", fileHash: "hash2-current", changelog: null, isLatest: true }],
+      })
+      .mockResolvedValueOnce({
+        versions: [{ version: "3.0.0", fileHash: "hash3-new", changelog: "Major update", isLatest: true }],
+      });
 
     const updates = await checkMarketplaceUpdates([skill1, skill2, skill3]);
 
@@ -315,18 +200,9 @@ describe("checkMarketplaceUpdates", () => {
       makeSkillRecord({ marketplaceSlug: "skill-c" }),
     ];
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve(
-            makeVersionsResponse([
-              { version: "1.0.0", fileHash: "same", changelog: null, isLatest: true },
-            ]),
-          ),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [{ version: "1.0.0", fileHash: "same", changelog: null, isLatest: true }],
+    });
 
     const onProgress = vi.fn();
 
@@ -338,87 +214,28 @@ describe("checkMarketplaceUpdates", () => {
     expect(onProgress).toHaveBeenCalledWith(3, 3);
   });
 
-  it("uses server URL from options", async () => {
+  it("passes server override to createMarketplaceClient", async () => {
     const skill = makeSkillRecord();
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve(
-            makeVersionsResponse([
-              { version: "1.0.0", fileHash: "hash", changelog: null, isLatest: true },
-            ]),
-          ),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [{ version: "1.0.0", fileHash: "hash", changelog: null, isLatest: true }],
+    });
 
     await checkMarketplaceUpdates([skill], { server: "https://custom.server.com" });
 
-    const fetchCall = vi.mocked(fetch).mock.calls[0][0] as string;
-    expect(fetchCall).toContain("https://custom.server.com");
+    expect(mockCreateMarketplaceClient).toHaveBeenCalledWith("https://custom.server.com");
   });
 
-  it("uses server URL from auth when no options server provided", async () => {
-    mockLoadAuth.mockReturnValue({
-      accessToken: "token",
-      refreshToken: "refresh",
-      serverUrl: "https://auth-server.example.com",
-      createdAt: new Date().toISOString(),
-    });
-
+  it("passes undefined server when no override", async () => {
     const skill = makeSkillRecord();
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve(
-            makeVersionsResponse([
-              { version: "1.0.0", fileHash: "hash", changelog: null, isLatest: true },
-            ]),
-          ),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [{ version: "1.0.0", fileHash: "hash", changelog: null, isLatest: true }],
+    });
 
     await checkMarketplaceUpdates([skill]);
 
-    const fetchCall = vi.mocked(fetch).mock.calls[0][0] as string;
-    expect(fetchCall).toContain("https://auth-server.example.com");
-  });
-
-  it("falls back to config serverUrl when no auth or options server", async () => {
-    mockLoadAuth.mockReturnValue(null);
-    mockLoadConfig.mockReturnValue({
-      version: 3,
-      defaultAgent: "claude",
-      defaultScope: "project",
-      serverUrl: "https://config-server.example.com",
-      repos: [],
-      agents: {},
-    });
-
-    const skill = makeSkillRecord();
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve(
-            makeVersionsResponse([
-              { version: "1.0.0", fileHash: "hash", changelog: null, isLatest: true },
-            ]),
-          ),
-      }),
-    );
-
-    await checkMarketplaceUpdates([skill]);
-
-    const fetchCall = vi.mocked(fetch).mock.calls[0][0] as string;
-    expect(fetchCall).toContain("https://config-server.example.com");
+    expect(mockCreateMarketplaceClient).toHaveBeenCalledWith(undefined);
   });
 
   it("handles empty commitHash on installed skill", async () => {
@@ -427,17 +244,9 @@ describe("checkMarketplaceUpdates", () => {
       marketplaceVersion: "",
     });
 
-    const versionsResponse = makeVersionsResponse([
-      { version: "1.0.0", fileHash: "newhash", changelog: null, isLatest: true },
-    ]);
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(versionsResponse),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [{ version: "1.0.0", fileHash: "newhash", changelog: null, isLatest: true }],
+    });
 
     const updates = await checkMarketplaceUpdates([skill]);
 
@@ -446,30 +255,21 @@ describe("checkMarketplaceUpdates", () => {
     expect(updates[0].currentVersion).toBe("");
   });
 
-  it("handles missing commitHash and marketplaceVersion on installed skill", async () => {
+  it("handles missing marketplaceVersion on installed skill", async () => {
     const skill: InstalledSkillRecord = {
       name: "test-skill",
       agent: "claude",
       repoOwner: "marketplace",
       repoName: "test-skill",
-      commitHash: "", // empty string
+      commitHash: "",
       installedAt: "2024-01-01T00:00:00Z",
       source: "marketplace",
       marketplaceSlug: "test-skill",
-      // marketplaceVersion intentionally omitted
     };
 
-    const versionsResponse = makeVersionsResponse([
-      { version: "1.0.0", fileHash: "hash", changelog: null, isLatest: true },
-    ]);
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(versionsResponse),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [{ version: "1.0.0", fileHash: "hash", changelog: null, isLatest: true }],
+    });
 
     const updates = await checkMarketplaceUpdates([skill]);
 
@@ -477,26 +277,16 @@ describe("checkMarketplaceUpdates", () => {
     expect(updates[0].currentVersion).toBe("");
   });
 
-  it("correctly calls versions API endpoint for each slug", async () => {
+  it("calls getSkillVersions with correct slug", async () => {
     const skill = makeSkillRecord({ marketplaceSlug: "my-cool-skill" });
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve(
-            makeVersionsResponse([
-              { version: "1.0.0", fileHash: "samehash", changelog: null, isLatest: true },
-            ]),
-          ),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [{ version: "1.0.0", fileHash: "samehash", changelog: null, isLatest: true }],
+    });
 
     await checkMarketplaceUpdates([skill]);
 
-    const fetchCall = vi.mocked(fetch).mock.calls[0][0] as string;
-    expect(fetchCall).toContain("/api/skills/my-cool-skill/versions");
+    expect(mockGetSkillVersions).toHaveBeenCalledWith("my-cool-skill");
   });
 
   it("mixes marketplace and non-marketplace skills, skipping non-marketplace", async () => {
@@ -511,23 +301,13 @@ describe("checkMarketplaceUpdates", () => {
       marketplaceSlug: undefined,
     });
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve(
-            makeVersionsResponse([
-              { version: "2.0.0", fileHash: "newhash", changelog: "New", isLatest: true },
-            ]),
-          ),
-      }),
-    );
+    mockGetSkillVersions.mockResolvedValue({
+      versions: [{ version: "2.0.0", fileHash: "newhash", changelog: "New", isLatest: true }],
+    });
 
     const updates = await checkMarketplaceUpdates([marketplaceSkill, gitSkill]);
 
-    // Only marketplace skill checked
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mockGetSkillVersions).toHaveBeenCalledTimes(1);
     expect(updates).toHaveLength(1);
     expect(updates[0].slug).toBe("mp-skill");
   });
