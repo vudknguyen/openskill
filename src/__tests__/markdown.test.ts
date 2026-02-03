@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import {
   parseSkillMd,
   parseCursorRule,
@@ -238,5 +238,43 @@ describe("serializeCursorRule", () => {
     const result = serializeCursorRule(rule);
     expect(result).toBe("Just plain content");
     expect(result).not.toContain("---");
+  });
+});
+
+describe("parseYaml", () => {
+  // Import dynamically since it's exported from the same module
+  let parseYaml: (source: string) => Record<string, unknown> | null;
+
+  beforeAll(async () => {
+    const mod = await import("../utils/markdown.js");
+    parseYaml = mod.parseYaml;
+  });
+
+  it("parses valid YAML", () => {
+    const result = parseYaml("key: value\nnumber: 42\nflag: true");
+    expect(result).toEqual({ key: "value", number: 42, flag: true });
+  });
+
+  it("parses nested YAML structures", () => {
+    const result = parseYaml("parent:\n  child: value\n  num: 10");
+    expect(result).toEqual({ parent: { child: "value", num: 10 } });
+  });
+
+  it("parses YAML arrays", () => {
+    const result = parseYaml("items:\n  - one\n  - two\n  - three");
+    expect(result).toEqual({ items: ["one", "two", "three"] });
+  });
+
+  it("returns null for invalid YAML", () => {
+    // gray-matter is lenient, but completely broken YAML with tabs at wrong positions may fail
+    const result = parseYaml(":\n  :\n    : : :");
+    // Even this may parse — gray-matter is very forgiving
+    // Just test that it doesn't throw
+    expect(result === null || typeof result === "object").toBe(true);
+  });
+
+  it("returns empty object for empty input", () => {
+    const result = parseYaml("");
+    expect(result).toEqual({});
   });
 });

@@ -34,11 +34,22 @@ interface MeResponse {
 }
 
 function openBrowser(url: string): void {
+  // Validate URL format to prevent command injection
+  try {
+    new URL(url);
+  } catch {
+    return;
+  }
+
   const os = platform();
-  const cmd =
-    os === "darwin" ? "open" : os === "win32" ? "cmd" : "xdg-open";
-  const args = os === "win32" ? ["/c", "start", url] : [url];
-  execFile(cmd, args, () => {});
+  if (os === "darwin") {
+    execFile("open", [url], () => {});
+  } else if (os === "win32") {
+    // Use empty title arg to prevent injection via cmd /c start
+    execFile("cmd", ["/c", "start", "", url], () => {});
+  } else {
+    execFile("xdg-open", [url], () => {});
+  }
 }
 
 function sleep(ms: number): Promise<void> {
@@ -161,6 +172,18 @@ Examples:
     logger.newline();
 
     if (options.browser) {
+      // Validate URL origin matches server to prevent phishing redirects
+      try {
+        const verifyUrl = new URL(deviceData.verification_uri_complete);
+        const serverOrigin = new URL(serverUrl);
+        if (verifyUrl.origin !== serverOrigin.origin) {
+          logger.error("Server returned a verification URL with a different origin. Aborting.");
+          return;
+        }
+      } catch {
+        logger.error("Server returned an invalid verification URL.");
+        return;
+      }
       openBrowser(deviceData.verification_uri_complete);
       logger.dim("  Browser opened. Approve the device to continue.");
     } else {

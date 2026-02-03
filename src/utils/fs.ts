@@ -144,7 +144,7 @@ export function isValidRepoPathName(name: string): boolean {
  * Only alphanumeric, dash, underscore allowed. Max 100 characters.
  */
 export function isValidConfigRepoName(name: string): boolean {
-  return /^[a-zA-Z0-9_-]+$/.test(name) && name.length > 0 && name.length <= 100;
+  return /^[a-zA-Z0-9_-]+$/.test(name) && name.length <= 100;
 }
 
 /**

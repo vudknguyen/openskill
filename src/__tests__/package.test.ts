@@ -8,7 +8,7 @@ vi.mock("fs", async (importOriginal) => {
     existsSync: vi.fn(),
     mkdirSync: vi.fn(),
     readFileSync: vi.fn(),
-    unlinkSync: vi.fn(),
+    rmSync: vi.fn(),
   };
 });
 
@@ -22,7 +22,7 @@ vi.mock("tar", () => ({
   create: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { existsSync, readFileSync, mkdirSync, unlinkSync } from "fs";
+import { existsSync, readFileSync, mkdirSync, rmSync } from "fs";
 import * as tar from "tar";
 import {
   packageSkill,
@@ -33,7 +33,7 @@ import {
 const mockExistsSync = vi.mocked(existsSync);
 const mockReadFileSync = vi.mocked(readFileSync);
 const mockMkdirSync = vi.mocked(mkdirSync);
-const mockUnlinkSync = vi.mocked(unlinkSync);
+const mockRmSync = vi.mocked(rmSync);
 const mockTarCreate = vi.mocked(tar.create);
 
 beforeEach(() => {
@@ -61,13 +61,13 @@ describe("packageSkill", () => {
       { recursive: true }
     );
     expect(mockTarCreate).toHaveBeenCalledOnce();
-    expect(mockUnlinkSync).toHaveBeenCalledOnce();
+    expect(mockRmSync).toHaveBeenCalledOnce();
   });
 
   it("succeeds even if temp file cleanup fails", async () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(Buffer.from("data"));
-    mockUnlinkSync.mockImplementation(() => {
+    mockRmSync.mockImplementation(() => {
       throw new Error("ENOENT");
     });
 

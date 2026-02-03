@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { getReposCacheDir, loadConfig } from "./config.js";
+import { getReposCacheDir, getSkillsCacheDir, loadConfig } from "./config.js";
 import { updateRepo } from "./git.js";
 import { discoverSkills, SkillInfo } from "./skill.js";
 import { parseGitUrl, isPathWithin, isValidConfigRepoName } from "../utils/fs.js";
@@ -50,7 +50,7 @@ export async function refreshRepo(name: string, url: string): Promise<RepoSkill[
   }
 
   // Discover skills in the repo (search from root recursively)
-  const repoPath = join(getReposCacheDir(), "..", "skills", `${owner}-${repo}`);
+  const repoPath = join(getSkillsCacheDir(), `${owner}-${repo}`);
 
   // Search recursively from repository root
   const skills = discoverSkills(repoPath);

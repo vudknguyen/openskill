@@ -5,6 +5,7 @@ interface RefreshResponse {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+  refresh_expires_in?: number;
 }
 
 /**
@@ -50,11 +51,16 @@ export async function getValidAuth(): Promise<AuthData | null> {
       Date.now() + data.expires_in * 1000
     ).toISOString();
 
+    const refreshExpiresAt = data.refresh_expires_in
+      ? new Date(Date.now() + data.refresh_expires_in * 1000).toISOString()
+      : auth.refreshExpiresAt;
+
     const updated: AuthData = {
       ...auth,
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresAt,
+      refreshExpiresAt,
     };
     saveAuth(updated);
 

@@ -1,9 +1,8 @@
-import { createReadStream, existsSync, readFileSync, statSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join, basename } from "path";
 import { createHash } from "crypto";
 import * as tar from "tar";
 import { tmpdir } from "os";
-import { writeFileSync, mkdirSync, unlinkSync } from "fs";
 
 // Patterns to exclude when packaging a skill directory
 const EXCLUDE_PATTERNS = [
@@ -65,12 +64,11 @@ export async function packageSkill(skillDir: string): Promise<Buffer> {
       ["."]
     );
 
-    const buffer = readFileSync(tarPath);
-    return buffer;
+    return readFileSync(tarPath);
   } finally {
-    // Cleanup temp file
+    // Cleanup entire temp directory
     try {
-      unlinkSync(tarPath);
+      rmSync(tempDir, { recursive: true, force: true });
     } catch {
       // Ignore cleanup errors
     }

@@ -83,7 +83,7 @@ export function validateSkillName(name: string): {
   valid: boolean;
   error?: string;
 } {
-  if (!name || name.length === 0) {
+  if (!name) {
     return { valid: false, error: "Name cannot be empty" };
   }
 
@@ -109,7 +109,7 @@ export function validateSkillDescription(description: string): {
   valid: boolean;
   error?: string;
 } {
-  if (!description || description.length === 0) {
+  if (!description) {
     return { valid: false, error: "Description cannot be empty" };
   }
 

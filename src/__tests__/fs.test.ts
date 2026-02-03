@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
 import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -10,6 +10,14 @@ import {
   safeJoinPath,
   isPathWithin,
   findSkillDirs,
+  truncate,
+  getScopeLabel,
+  ensureDir,
+  removeDir,
+  isDirectory,
+  getProjectRoot,
+  isValidRepoPathName,
+  isValidConfigRepoName,
 } from "../utils/fs.js";
 
 describe("parseGitUrl", () => {
@@ -358,5 +366,163 @@ describe("findSkillDirs", () => {
     const deep = findSkillDirs(testDir, 10);
     expect(deep).toHaveLength(1);
     expect(deep).toContain(deepPath);
+  });
+});
+
+describe("truncate", () => {
+  it("returns string unchanged when within max length", () => {
+    expect(truncate("hello", 10)).toBe("hello");
+  });
+
+  it("returns string unchanged when exactly at max length", () => {
+    expect(truncate("hello", 5)).toBe("hello");
+  });
+
+  it("truncates and adds ellipsis when over max length", () => {
+    expect(truncate("hello world", 6)).toBe("hello\u2026");
+  });
+
+  it("handles single character max length", () => {
+    expect(truncate("hello", 1)).toBe("\u2026");
+  });
+});
+
+describe("getScopeLabel", () => {
+  it('returns " (global)" for global scope', () => {
+    expect(getScopeLabel("global")).toBe(" (global)");
+  });
+
+  it('returns "" for project scope', () => {
+    expect(getScopeLabel("project")).toBe("");
+  });
+
+  it('returns "" for undefined scope', () => {
+    expect(getScopeLabel(undefined)).toBe("");
+  });
+});
+
+describe("ensureDir", () => {
+  let testDir: string;
+
+  afterEach(() => {
+    if (testDir && existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  it("creates directory when it does not exist", () => {
+    testDir = join(tmpdir(), `osk-ensure-${Date.now()}`);
+    expect(existsSync(testDir)).toBe(false);
+
+    ensureDir(testDir);
+    expect(existsSync(testDir)).toBe(true);
+  });
+
+  it("does nothing when directory already exists", () => {
+    testDir = join(tmpdir(), `osk-ensure-existing-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+
+    ensureDir(testDir); // Should not throw
+    expect(existsSync(testDir)).toBe(true);
+  });
+});
+
+describe("removeDir", () => {
+  it("removes existing directory", () => {
+    const testDir = join(tmpdir(), `osk-remove-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    writeFileSync(join(testDir, "file.txt"), "content");
+
+    removeDir(testDir);
+    expect(existsSync(testDir)).toBe(false);
+  });
+
+  it("does nothing when directory does not exist", () => {
+    removeDir("/non/existent/path-" + Date.now()); // Should not throw
+  });
+});
+
+describe("isDirectory", () => {
+  it("returns true for existing directory", () => {
+    const testDir = join(tmpdir(), `osk-isdir-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+
+    expect(isDirectory(testDir)).toBe(true);
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it("returns false for non-existent path", () => {
+    expect(isDirectory("/non/existent/path-" + Date.now())).toBe(false);
+  });
+
+  it("returns false for a file", () => {
+    const testDir = join(tmpdir(), `osk-isdir-file-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    const filePath = join(testDir, "file.txt");
+    writeFileSync(filePath, "content");
+
+    expect(isDirectory(filePath)).toBe(false);
+    rmSync(testDir, { recursive: true, force: true });
+  });
+});
+
+describe("getProjectRoot", () => {
+  it("returns current working directory", () => {
+    expect(getProjectRoot()).toBe(process.cwd());
+  });
+});
+
+describe("isValidRepoPathName", () => {
+  it("accepts valid names", () => {
+    expect(isValidRepoPathName("anthropics")).toBe(true);
+    expect(isValidRepoPathName("my-repo")).toBe(true);
+    expect(isValidRepoPathName("repo.name")).toBe(true);
+    expect(isValidRepoPathName("user_name")).toBe(true);
+    expect(isValidRepoPathName("a123")).toBe(true);
+  });
+
+  it("rejects names starting with special characters", () => {
+    expect(isValidRepoPathName(".hidden")).toBe(false);
+    expect(isValidRepoPathName("-start")).toBe(false);
+    expect(isValidRepoPathName("_start")).toBe(false);
+  });
+
+  it("rejects names with invalid characters", () => {
+    expect(isValidRepoPathName("my repo")).toBe(false);
+    expect(isValidRepoPathName("path/traversal")).toBe(false);
+    expect(isValidRepoPathName("..")).toBe(false);
+  });
+
+  it("rejects names over 100 characters", () => {
+    expect(isValidRepoPathName("a".repeat(101))).toBe(false);
+  });
+
+  it("rejects empty names", () => {
+    expect(isValidRepoPathName("")).toBe(false);
+  });
+});
+
+describe("isValidConfigRepoName", () => {
+  it("accepts valid config repo names", () => {
+    expect(isValidConfigRepoName("anthropic-official")).toBe(true);
+    expect(isValidConfigRepoName("my_repo")).toBe(true);
+    expect(isValidConfigRepoName("repo123")).toBe(true);
+    expect(isValidConfigRepoName("a")).toBe(true);
+  });
+
+  it("rejects names with dots", () => {
+    expect(isValidConfigRepoName("my.repo")).toBe(false);
+  });
+
+  it("rejects empty names", () => {
+    expect(isValidConfigRepoName("")).toBe(false);
+  });
+
+  it("rejects names over 100 characters", () => {
+    expect(isValidConfigRepoName("a".repeat(101))).toBe(false);
+  });
+
+  it("rejects names with spaces", () => {
+    expect(isValidConfigRepoName("my repo")).toBe(false);
   });
 });

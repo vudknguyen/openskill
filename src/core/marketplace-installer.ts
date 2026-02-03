@@ -1,8 +1,7 @@
-import { mkdirSync, existsSync, writeFileSync, readFileSync } from "fs";
-import { join } from "path";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { join, resolve, relative } from "path";
 import { tmpdir } from "os";
 import * as tar from "tar";
-import { rmSync } from "fs";
 import { loadAuth } from "./auth.js";
 import { loadConfig } from "./config.js";
 import { loadSkillFromDir } from "./skill.js";
@@ -71,10 +70,17 @@ async function downloadAndExtract(
   // Ensure target exists
   mkdirSync(targetDir, { recursive: true });
 
-  // Extract
+  // Extract with path traversal protection
+  const resolvedTarget = resolve(targetDir);
   await tar.extract({
     file: tempTarPath,
     cwd: targetDir,
+    filter: (path) => {
+      const full = resolve(targetDir, path);
+      const rel = relative(resolvedTarget, full);
+      // Reject paths that escape the target directory
+      return !rel.startsWith("..");
+    },
   });
 }
 
