@@ -20,6 +20,12 @@ export interface InstalledSkillRecord {
   installedAt: string;
   /** Install scope (project or global) */
   scope?: InstallScope;
+  /** Install source: "git" (default) or "marketplace" */
+  source?: "git" | "marketplace";
+  /** Marketplace skill slug (when source=marketplace) */
+  marketplaceSlug?: string;
+  /** Marketplace version (when source=marketplace) */
+  marketplaceVersion?: string;
 }
 
 export interface Manifest {

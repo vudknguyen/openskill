@@ -6,21 +6,33 @@ import { updateRepo, getRepoCommit, getCommitMessages } from "../core/git.js";
 import { getAllInstalledSkills, addSkillRecord, InstalledSkillRecord } from "../core/manifest.js";
 import { refreshAllRepos } from "../core/registry.js";
 import { loadSkillFromDir } from "../core/skill.js";
+import { installFromMarketplace } from "../core/marketplace-installer.js";
+import { checkMarketplaceUpdates, type MarketplaceUpdate } from "../core/marketplace-update-checker.js";
 import { safeJoinPath } from "../utils/fs.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { autocomplete } from "../utils/prompt.js";
 
-interface SkillUpdate {
+interface GitSkillUpdate {
+  source: "git";
   record: InstalledSkillRecord;
   currentCommit: string;
   latestCommit: string;
 }
+
+interface MarketplaceSkillUpdate {
+  source: "marketplace";
+  record: InstalledSkillRecord;
+  update: MarketplaceUpdate;
+}
+
+type SkillUpdate = GitSkillUpdate | MarketplaceSkillUpdate;
 
 export const updateCommand = new Command("update")
   .alias("up")
   .description("Update skills and repositories")
   .option("--repos", "Only update repository caches")
   .option("--check", "Only check for updates, don't install")
+  .option("-s, --server <url>", "Server URL override")
   .addHelpText(
     "after",
     `
@@ -38,7 +50,6 @@ Examples:
       return;
     }
 
-    // Get all installed skills
     const installed = getAllInstalledSkills();
 
     if (installed.length === 0) {
@@ -46,83 +57,67 @@ Examples:
       return;
     }
 
-    // Group skills by repo to avoid redundant fetches
-    const repoMap = new Map<string, InstalledSkillRecord[]>();
+    // Split by source
+    const gitSkills: InstalledSkillRecord[] = [];
+    const marketplaceSkills: InstalledSkillRecord[] = [];
+
     for (const skill of installed) {
-      const key = `${skill.repoOwner}/${skill.repoName}`;
-      if (!repoMap.has(key)) {
-        repoMap.set(key, []);
+      if (skill.source === "marketplace") {
+        marketplaceSkills.push(skill);
+      } else {
+        gitSkills.push(skill);
       }
-      repoMap.get(key)!.push(skill);
     }
 
-    const repoCount = repoMap.size;
-    let checkedCount = 0;
-
-    const spinner = createSpinner(`Checking for updates (0/${repoCount} repositories)...`);
-
-    // Check each repo for updates
     const updates: SkillUpdate[] = [];
 
-    for (const [repoKey, skills] of repoMap) {
-      checkedCount++;
-      spinner.update(`Checking for updates (${checkedCount}/${repoCount}): ${repoKey}...`);
+    // Check git-based skills
+    if (gitSkills.length > 0) {
+      const gitUpdates = await checkGitUpdates(gitSkills);
+      updates.push(...gitUpdates);
+    }
 
-      const [owner, repo] = repoKey.split("/");
-      if (!owner || !repo) {
-        logger.warn(`Invalid repository key: ${repoKey}`);
-        continue;
-      }
-
-      // Fetch latest from remote
-      const result = await updateRepo(owner, repo);
-      if (!result.success) {
-        logger.warn(`Failed to check ${repoKey}: ${result.error}`);
-        continue;
-      }
-
-      const latestCommit = await getRepoCommit(owner, repo);
-      if (!latestCommit) continue;
-
-      // Check each skill from this repo
-      for (const skill of skills) {
-        if (skill.commitHash !== latestCommit) {
-          updates.push({
-            record: skill,
-            currentCommit: skill.commitHash,
-            latestCommit,
-          });
-        }
-      }
+    // Check marketplace-based skills
+    if (marketplaceSkills.length > 0) {
+      const mpUpdates = await checkMarketplaceSkillUpdates(
+        marketplaceSkills,
+        options.server,
+      );
+      updates.push(...mpUpdates);
     }
 
     if (updates.length === 0) {
-      spinner.stop(`All ${installed.length} skill(s) are up to date`);
+      logger.info(`All ${installed.length} skill(s) are up to date`);
       return;
     }
 
-    spinner.stop(`Found ${updates.length} update(s)`);
-
-    // Show available updates with commit summaries
+    // Display available updates
     logger.header(`${updates.length} update(s) available`);
 
     for (const update of updates) {
-      const { record, currentCommit, latestCommit } = update;
-      logger.log(
-        `  ${record.name} (${record.agent}): ${currentCommit.slice(0, 7)} → ${latestCommit.slice(0, 7)}`
-      );
-
-      // Show recent commit messages
-      const commits = getCommitMessages(
-        record.repoOwner,
-        record.repoName,
-        currentCommit,
-        latestCommit,
-        3
-      );
-      if (commits.length > 0) {
+      if (update.source === "git") {
+        const { record, currentCommit, latestCommit } = update;
+        logger.log(
+          `  ${record.name} (${record.agent}): ${currentCommit.slice(0, 7)} → ${latestCommit.slice(0, 7)}`
+        );
+        const commits = getCommitMessages(
+          record.repoOwner,
+          record.repoName,
+          currentCommit,
+          latestCommit,
+          3
+        );
         for (const commit of commits) {
           logger.dim(`    ${commit}`);
+        }
+      } else {
+        const { record, update: mp } = update;
+        logger.log(
+          `  ${record.name} (${record.agent}): ${record.marketplaceVersion} → ${mp.latestVersion}`
+        );
+        logger.dim(`    hash: ${mp.currentHash.slice(0, 12)} → ${mp.latestHash.slice(0, 12)}`);
+        if (mp.changelog) {
+          logger.dim(`    ${mp.changelog}`);
         }
       }
     }
@@ -133,61 +128,181 @@ Examples:
     }
 
     // Let user select which to update
-    const selected = await autocomplete(
-      "Search and select skills to update (space to select, enter to confirm):",
-      updates.map((u) => ({
+    const choices = updates.map((u) => {
+      if (u.source === "git") {
+        return {
+          name: u.record.name,
+          hint: `${u.record.agent} · ${u.currentCommit.slice(0, 7)} → ${u.latestCommit.slice(0, 7)}`,
+          value: u,
+        };
+      }
+      return {
         name: u.record.name,
-        hint: `${u.record.agent} • ${u.currentCommit.slice(0, 7)} → ${u.latestCommit.slice(0, 7)}`,
+        hint: `${u.record.agent} · ${u.record.marketplaceVersion} → ${u.update.latestVersion}`,
         value: u,
-      })),
+      };
+    });
+
+    const selected = await autocomplete<SkillUpdate>(
+      "Search and select skills to update (space to select, enter to confirm):",
+      choices,
       { multiple: true }
     );
 
     if (selected.length === 0) {
       logger.warn("No skills selected. Update cancelled.");
-      logger.dim("Run 'osk update' again to retry selection");
       return;
     }
 
     // Perform updates
     logger.newline();
-    for (const update of selected) {
-      const { record, latestCommit } = update;
-      const agent = getAgent(record.agent);
-      if (!agent) continue;
-
-      // Find skill in cached repo
-      const repoPath = join(getSkillsCacheDir(), `${record.repoOwner}-${record.repoName}`);
-      let skillPath: string | null = null;
-      if (record.repoPath) {
-        skillPath = safeJoinPath(repoPath, record.repoPath);
+    for (const item of selected) {
+      if (item.source === "git") {
+        await applyGitUpdate(item);
       } else {
-        const skillsDir = safeJoinPath(repoPath, "skills");
-        if (skillsDir) {
-          skillPath = safeJoinPath(skillsDir, record.name);
-        }
+        await applyMarketplaceUpdate(item, options.server);
       }
-
-      if (!skillPath) {
-        logger.warn(`Invalid path for ${record.name}`);
-        continue;
-      }
-
-      const skill = loadSkillFromDir(skillPath);
-      if (!skill) {
-        logger.warn(`Could not load ${record.name}`);
-        continue;
-      }
-
-      await agent.installSkill(skill, skillPath, undefined, record.scope);
-
-      // Update manifest
-      addSkillRecord({
-        ...record,
-        commitHash: latestCommit,
-        installedAt: new Date().toISOString(),
-      });
-
-      logger.success(`Updated ${record.name} → ${record.agent}`);
     }
   });
+
+// ---------------------------------------------------------------------------
+// Git update checking
+// ---------------------------------------------------------------------------
+
+async function checkGitUpdates(
+  skills: InstalledSkillRecord[],
+): Promise<GitSkillUpdate[]> {
+  const repoMap = new Map<string, InstalledSkillRecord[]>();
+  for (const skill of skills) {
+    const key = `${skill.repoOwner}/${skill.repoName}`;
+    if (!repoMap.has(key)) repoMap.set(key, []);
+    repoMap.get(key)!.push(skill);
+  }
+
+  const repoCount = repoMap.size;
+  let checkedCount = 0;
+  const spinner = createSpinner(`Checking git repos (0/${repoCount})...`);
+  const updates: GitSkillUpdate[] = [];
+
+  for (const [repoKey, repoSkills] of repoMap) {
+    checkedCount++;
+    spinner.update(`Checking git repos (${checkedCount}/${repoCount}): ${repoKey}...`);
+
+    const [owner, repo] = repoKey.split("/");
+    if (!owner || !repo) continue;
+
+    const result = await updateRepo(owner, repo);
+    if (!result.success) {
+      logger.warn(`Failed to check ${repoKey}: ${result.error}`);
+      continue;
+    }
+
+    const latestCommit = await getRepoCommit(owner, repo);
+    if (!latestCommit) continue;
+
+    for (const skill of repoSkills) {
+      if (skill.commitHash !== latestCommit) {
+        updates.push({
+          source: "git",
+          record: skill,
+          currentCommit: skill.commitHash,
+          latestCommit,
+        });
+      }
+    }
+  }
+
+  spinner.stop(
+    updates.length > 0
+      ? `Found ${updates.length} git update(s)`
+      : "Git skills up to date",
+  );
+  return updates;
+}
+
+async function applyGitUpdate(update: GitSkillUpdate): Promise<void> {
+  const { record, latestCommit } = update;
+  const agent = getAgent(record.agent);
+  if (!agent) return;
+
+  const repoPath = join(getSkillsCacheDir(), `${record.repoOwner}-${record.repoName}`);
+  let skillPath: string | null = null;
+  if (record.repoPath) {
+    skillPath = safeJoinPath(repoPath, record.repoPath);
+  } else {
+    const skillsDir = safeJoinPath(repoPath, "skills");
+    if (skillsDir) {
+      skillPath = safeJoinPath(skillsDir, record.name);
+    }
+  }
+
+  if (!skillPath) {
+    logger.warn(`Invalid path for ${record.name}`);
+    return;
+  }
+
+  const skill = loadSkillFromDir(skillPath);
+  if (!skill) {
+    logger.warn(`Could not load ${record.name}`);
+    return;
+  }
+
+  await agent.installSkill(skill, skillPath, undefined, record.scope);
+
+  addSkillRecord({
+    ...record,
+    commitHash: latestCommit,
+    installedAt: new Date().toISOString(),
+  });
+
+  logger.success(`Updated ${record.name} → ${record.agent}`);
+}
+
+// ---------------------------------------------------------------------------
+// Marketplace update checking
+// ---------------------------------------------------------------------------
+
+async function checkMarketplaceSkillUpdates(
+  skills: InstalledSkillRecord[],
+  serverOverride?: string,
+): Promise<MarketplaceSkillUpdate[]> {
+  const spinner = createSpinner(`Checking marketplace (0/${skills.length})...`);
+
+  const mpUpdates = await checkMarketplaceUpdates(skills, {
+    server: serverOverride,
+    onProgress: (checked, total) => {
+      spinner.update(`Checking marketplace (${checked}/${total})...`);
+    },
+  });
+
+  const updates: MarketplaceSkillUpdate[] = mpUpdates.map((mp) => ({
+    source: "marketplace" as const,
+    record: skills.find((s) => s.marketplaceSlug === mp.slug)!,
+    update: mp,
+  }));
+
+  spinner.stop(
+    updates.length > 0
+      ? `Found ${updates.length} marketplace update(s)`
+      : "Marketplace skills up to date",
+  );
+  return updates;
+}
+
+async function applyMarketplaceUpdate(
+  update: MarketplaceSkillUpdate,
+  serverOverride?: string,
+): Promise<void> {
+  const { record, update: mp } = update;
+  try {
+    await installFromMarketplace(mp.slug, {
+      agent: record.agent,
+      scope: record.scope,
+      server: serverOverride,
+    });
+  } catch (err) {
+    logger.error(
+      `Failed to update ${record.name}: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}

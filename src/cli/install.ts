@@ -8,6 +8,7 @@ import { cloneRepo, getRepoCommit } from "../core/git.js";
 import { loadSkillFromDir, discoverSkills, SkillInfo } from "../core/skill.js";
 import { searchSkills } from "../core/registry.js";
 import { addSkillRecord } from "../core/manifest.js";
+import { installFromMarketplace } from "../core/marketplace-installer.js";
 import { parseGitUrl, safeJoinPath, getScopeLabel } from "../utils/fs.js";
 import { logger, createSpinner } from "../utils/logger.js";
 
@@ -30,6 +31,8 @@ export const installCommand = new Command("install")
   .option("-t, --target <agent>", "Target agent (claude, cursor, codex, antigravity)")
   .option("-a, --all", "Install all skills from repository (requires -t/--target)")
   .option("-g, --global", "Install to global directory (~/.{agent}/skills/)")
+  .option("-m, --marketplace", "Install from the OpenSkill marketplace")
+  .option("--version <version>", "Specific marketplace version to install")
   .option("-y, --yes", "Skip interactive prompts, use defaults")
   .addHelpText(
     "after",
@@ -43,6 +46,8 @@ Examples:
   $ osk install https://gitlab.com/user/repo   # Install from GitLab
   $ osk install git@github.com:user/repo.git   # Install via SSH
   $ osk install pdf                            # Search and install by name
+  $ osk install pdf-reader -m                  # Install from marketplace
+  $ osk install pdf-reader -m --version 1.0.0  # Specific marketplace version
 `
   )
   .action(async (source: string, skillArg: string | undefined, options) => {
@@ -65,6 +70,24 @@ Examples:
       }
 
       const scope: InstallScope = options.global ? "global" : "project";
+
+      // Marketplace install path
+      if (options.marketplace) {
+        try {
+          await installFromMarketplace(source, {
+            agent: options.target,
+            version: options.version,
+            scope,
+          });
+        } catch (err) {
+          logger.error(
+            err instanceof Error ? err.message : String(err)
+          );
+          process.exit(1);
+        }
+        return;
+      }
+
       const parsed = parseGitUrl(source);
 
       if (parsed) {
@@ -401,6 +424,79 @@ export async function interactiveInstallFromSkills(
         skillName: skill.name,
         scope,
       });
+    }
+  }
+}
+
+/**
+ * Interactive install from mixed search results (repos + marketplace).
+ * Each item is tagged with its source so the correct installer is called.
+ */
+export async function interactiveInstallFromMixed(
+  repoSkills: Array<{
+    name: string;
+    description: string;
+    repoOwner: string;
+    repoName: string;
+    repo: string;
+    skillPath: string;
+  }>,
+  marketplaceSkills: Array<{
+    slug: string;
+    name: string;
+    description: string;
+    shortDescription: string | null;
+    authorName: string | null;
+  }>,
+): Promise<void> {
+  const { truncate } = await import("../utils/fs.js");
+  const { selectScope } = await import("../utils/prompt.js");
+
+  type RepoChoice = { source: "repo"; skill: (typeof repoSkills)[number] };
+  type MarketChoice = { source: "marketplace"; skill: (typeof marketplaceSkills)[number] };
+
+  const choices: Array<{ name: string; hint: string; value: RepoChoice | MarketChoice }> = [];
+
+  for (const s of marketplaceSkills) {
+    choices.push({
+      name: s.name,
+      hint: `marketplace${s.authorName ? ` · ${s.authorName}` : ""} · ${truncate(s.shortDescription || s.description, 40)}`,
+      value: { source: "marketplace", skill: s },
+    });
+  }
+
+  for (const s of repoSkills) {
+    choices.push({
+      name: s.name,
+      hint: `${s.repo} · ${truncate(s.description, 40)}`,
+      value: { source: "repo", skill: s },
+    });
+  }
+
+  if (choices.length === 0) return;
+
+  const selected = await autocomplete(
+    "Select skill(s) to install (space to select, enter to confirm):",
+    choices,
+    { multiple: true },
+  );
+
+  if (selected && selected.length > 0) {
+    logger.newline();
+    const scope = await selectScope();
+    logger.newline();
+
+    for (const item of selected) {
+      if (item.source === "repo") {
+        const s = item.skill as (typeof repoSkills)[number];
+        await installFromGitHub(s.repoOwner, s.repoName, s.skillPath, {
+          skillName: s.name,
+          scope,
+        });
+      } else {
+        const s = item.skill as (typeof marketplaceSkills)[number];
+        await installFromMarketplace(s.slug, { scope });
+      }
     }
   }
 }

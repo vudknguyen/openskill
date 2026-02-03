@@ -19,6 +19,11 @@ import { completionCommand } from "./completion.js";
 import { configCommand } from "./config.js";
 import { repoCommand } from "./repo.js";
 import { browseCommand } from "./browse.js";
+import { loginCommand } from "./login.js";
+import { logoutCommand } from "./logout.js";
+import { whoamiCommand } from "./whoami.js";
+import { pushCommand } from "./push.js";
+import { publishCommand } from "./publish.js";
 import { versionCommand, getVersion } from "./version.js";
 
 const program = new Command();
@@ -91,6 +96,11 @@ program.addCommand(completionCommand);
 program.addCommand(configCommand);
 program.addCommand(repoCommand);
 program.addCommand(browseCommand);
+program.addCommand(loginCommand);
+program.addCommand(logoutCommand);
+program.addCommand(whoamiCommand);
+program.addCommand(pushCommand);
+program.addCommand(publishCommand);
 program.addCommand(versionCommand);
 
 // Handle unhandled rejections (including PromptCancelledError)

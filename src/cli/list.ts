@@ -7,7 +7,7 @@ import {
   InstallScope,
   InstalledSkill,
 } from "../agents/index.js";
-import { getAllInstalledSkills, getSkillRecord } from "../core/manifest.js";
+import { getAllInstalledSkills, getSkillRecord, type InstalledSkillRecord } from "../core/manifest.js";
 import { getScopeLabel } from "../utils/fs.js";
 import { logger } from "../utils/logger.js";
 
@@ -68,7 +68,7 @@ function displayAgentSkills(agent: Agent, skills: InstalledSkill[], scope?: Inst
     logger.dim(`Project: ${agent.getSkillPath()}`);
     for (const skill of projectSkills) {
       const record = getSkillRecord(skill.name, agent.name, "project");
-      const version = skill.version || record?.commitHash?.slice(0, 7) || "-";
+      const version = skill.version || resolveDisplayVersion(record) || "-";
       logger.skillCompact(skill.name, version, agent.icon, agent.color);
     }
   }
@@ -77,7 +77,7 @@ function displayAgentSkills(agent: Agent, skills: InstalledSkill[], scope?: Inst
     logger.dim(`Global: ${agent.getGlobalSkillPath()}`);
     for (const skill of globalSkills) {
       const record = getSkillRecord(skill.name, agent.name, "global");
-      const version = skill.version || record?.commitHash?.slice(0, 7) || "-";
+      const version = skill.version || resolveDisplayVersion(record) || "-";
       logger.skillCompact(skill.name, version, agent.icon, agent.color, "global");
     }
   }
@@ -174,8 +174,14 @@ async function showSkillDetail(skillName: string, scope?: InstallScope): Promise
     logger.header(`${record.name}${scopeLabel}`);
     logger.log(`  Agent:       ${agent.displayName}`);
     logger.log(`  Scope:       ${recordScope}`);
-    logger.log(`  Source:      ${record.repoOwner}/${record.repoName}`);
-    logger.log(`  Version:     ${record.commitHash.slice(0, 7)}`);
+    if (record.source === "marketplace") {
+      logger.log(`  Source:      marketplace`);
+      logger.log(`  Version:     ${record.marketplaceVersion || record.commitHash.slice(0, 7)}`);
+      logger.log(`  Hash:        ${record.commitHash.slice(0, 12)}`);
+    } else {
+      logger.log(`  Source:      ${record.repoOwner}/${record.repoName}`);
+      logger.log(`  Version:     ${record.commitHash.slice(0, 7)}`);
+    }
     logger.log(`  Installed:   ${new Date(record.installedAt).toLocaleDateString()}`);
     logger.log(`  Path:        ${path}/${record.name}`);
     logger.newline();
@@ -185,4 +191,16 @@ async function showSkillDetail(skillName: string, scope?: InstallScope): Promise
       logger.newline();
     }
   }
+}
+
+/**
+ * Resolve display version: marketplace skills show semver,
+ * git skills show short commit hash.
+ */
+function resolveDisplayVersion(record?: InstalledSkillRecord): string | undefined {
+  if (!record) return undefined;
+  if (record.source === "marketplace" && record.marketplaceVersion) {
+    return record.marketplaceVersion;
+  }
+  return record.commitHash?.slice(0, 7);
 }
