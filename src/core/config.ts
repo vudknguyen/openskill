@@ -8,7 +8,7 @@ import { InstallScope } from "../agents/types.js";
  * Config version for migration support.
  * Increment when config schema changes.
  */
-export const CONFIG_VERSION = 1;
+export const CONFIG_VERSION = 2;
 
 export interface RepoConfig {
   name: string;
@@ -46,9 +46,13 @@ const DEFAULT_CONFIG: Config = {
   ],
   agents: {
     claude: { skillPath: ".claude/skills" },
-    antigravity: { skillPath: ".antigravity/skills" },
+    antigravity: { skillPath: ".agent/skills" },
     codex: { skillPath: ".codex/skills" },
     cursor: { skillPath: ".cursor/skills" },
+    gemini: { skillPath: ".gemini/skills" },
+    copilot: { skillPath: ".github/skills" },
+    opencode: { skillPath: ".opencode/skills" },
+    windsurf: { skillPath: ".windsurf/skills" },
   },
 };
 
@@ -190,11 +194,28 @@ function migrateConfig(config: Config, _rawConfig: Record<string, unknown>): voi
     config.version = 1;
   }
 
-  // Future migrations:
-  // if (config.version < 2) {
-  //   // ... migrate from v1 to v2 ...
-  //   config.version = 2;
-  // }
+  // Migration from version 1 to version 2: add new agents, update antigravity path
+  if (config.version < 2) {
+    // Add new agent configs if missing
+    const newAgentDefaults: Record<string, AgentConfig> = {
+      gemini: { skillPath: ".gemini/skills" },
+      copilot: { skillPath: ".github/skills" },
+      opencode: { skillPath: ".opencode/skills" },
+      windsurf: { skillPath: ".windsurf/skills" },
+    };
+    for (const [name, defaultCfg] of Object.entries(newAgentDefaults)) {
+      if (!config.agents[name]) {
+        config.agents[name] = defaultCfg;
+      }
+    }
+
+    // Migrate antigravity path from .antigravity/skills to .agent/skills
+    if (config.agents.antigravity?.skillPath === ".antigravity/skills") {
+      config.agents.antigravity.skillPath = ".agent/skills";
+    }
+
+    config.version = 2;
+  }
 }
 
 export function saveConfig(config: Config): void {

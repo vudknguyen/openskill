@@ -255,6 +255,67 @@ describe("loadConfig", () => {
     expect(config.version).toBe(CONFIG_VERSION);
   });
 
+  it("migrates v1 config to v2 with new agents and antigravity path", () => {
+    const v1Config = {
+      version: 1,
+      defaultAgent: "claude",
+      defaultScope: "project",
+      repos: [],
+      agents: {
+        claude: { skillPath: ".claude/skills" },
+        antigravity: { skillPath: ".antigravity/skills" },
+        codex: { skillPath: ".codex/skills" },
+        cursor: { skillPath: ".cursor/skills" },
+      },
+    };
+
+    mockedExistsSync.mockImplementation((path) => {
+      if (typeof path === "string" && path.endsWith("config.json")) return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue(JSON.stringify(v1Config));
+
+    const config = loadConfig();
+
+    // New agents added
+    expect(config.agents.gemini).toEqual({ skillPath: ".gemini/skills" });
+    expect(config.agents.copilot).toEqual({ skillPath: ".github/skills" });
+    expect(config.agents.opencode).toEqual({ skillPath: ".opencode/skills" });
+    expect(config.agents.windsurf).toEqual({ skillPath: ".windsurf/skills" });
+
+    // Antigravity path migrated
+    expect(config.agents.antigravity.skillPath).toBe(".agent/skills");
+
+    expect(config.version).toBe(CONFIG_VERSION);
+    expect(mockedWriteFileSync).toHaveBeenCalled();
+  });
+
+  it("v1→v2 migration does not overwrite existing new agent configs", () => {
+    const v1Config = {
+      version: 1,
+      defaultAgent: "claude",
+      defaultScope: "project",
+      repos: [],
+      agents: {
+        claude: { skillPath: ".claude/skills" },
+        gemini: { skillPath: ".custom/gemini" },
+      },
+    };
+
+    mockedExistsSync.mockImplementation((path) => {
+      if (typeof path === "string" && path.endsWith("config.json")) return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue(JSON.stringify(v1Config));
+
+    const config = loadConfig();
+
+    // User's custom path preserved
+    expect(config.agents.gemini.skillPath).toBe(".custom/gemini");
+    // Other new agents still added
+    expect(config.agents.copilot).toEqual({ skillPath: ".github/skills" });
+  });
+
   it("does not re-migrate already migrated config", () => {
     const currentConfig = {
       version: CONFIG_VERSION,
