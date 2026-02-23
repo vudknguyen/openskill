@@ -89,6 +89,7 @@ Examples:
         logger.skill(skill.name, skill.shortDescription || skill.description);
         const meta = [
           skill.authorName && `by ${skill.authorName}`,
+          skill.tags && `[${skill.tags}]`,
           `osk install ${skill.slug} --marketplace`,
         ].filter(Boolean).join("  ·  ");
         logger.dim(`    ${meta}`);

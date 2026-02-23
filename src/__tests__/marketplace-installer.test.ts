@@ -65,6 +65,17 @@ vi.mock("tar", () => ({
   extract: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Mock telemetry
+vi.mock("../core/telemetry.js", () => ({
+  trackInstall: vi.fn(),
+  trackUninstall: vi.fn(),
+  trackUpdate: vi.fn(),
+  trackError: vi.fn(),
+  trackStart: vi.fn(),
+  trackCommand: vi.fn(),
+  flushTelemetry: vi.fn(),
+}));
+
 import { loadSkillFromDir } from "../core/skill.js";
 import { addSkillRecord } from "../core/manifest.js";
 import { getAgent } from "../agents/index.js";

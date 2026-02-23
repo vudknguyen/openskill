@@ -8,6 +8,7 @@ export interface MarketplaceSkillResult {
   authorName: string | null;
   installCount: number;
   avgRating: string | null;
+  tags: string | null;
 }
 
 /**
@@ -29,5 +30,6 @@ export async function searchMarketplace(
     authorName: author?.name ?? null,
     installCount: skill.installCount,
     avgRating: skill.avgRating,
+    tags: skill.tags,
   }));
 }

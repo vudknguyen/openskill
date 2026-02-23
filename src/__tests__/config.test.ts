@@ -476,6 +476,7 @@ describe("serverUrl config", () => {
       defaultAgent: "claude",
       defaultScope: "project" as const,
       serverUrl: "https://custom.server.com",
+      telemetryEnabled: false,
       repos: [],
       agents: {},
     };
@@ -500,6 +501,7 @@ describe("saveConfig", () => {
       defaultAgent: "claude",
       defaultScope: "project" as const,
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [],
       agents: {},
     };
@@ -519,6 +521,7 @@ describe("saveConfig", () => {
       defaultAgent: "claude",
       defaultScope: "project" as const,
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [],
       agents: {},
     };

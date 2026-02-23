@@ -236,6 +236,7 @@ describe("searchSkills", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [{ name: "repo-a", url: "https://github.com/a/skills" }],
       agents: {},
     });
@@ -261,6 +262,7 @@ describe("searchSkills", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [{ name: "repo-a", url: "https://github.com/a/skills" }],
       agents: {},
     });
@@ -285,6 +287,7 @@ describe("searchSkills", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [{ name: "repo-a", url: "https://github.com/a/skills" }],
       agents: {},
     });
@@ -308,6 +311,7 @@ describe("searchSkills", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [{ name: "repo-a", url: "https://github.com/a/skills" }],
       agents: {},
     });
@@ -342,6 +346,7 @@ describe("searchSkills", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [
         { name: "broken-repo", url: "https://github.com/broken/repo" },
         { name: "good-repo", url: "https://github.com/good/repo" },
@@ -375,6 +380,7 @@ describe("searchSkills", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [{ name: "repo-a", url: "https://github.com/a/skills" }],
       agents: {},
     });
@@ -403,6 +409,7 @@ describe("refreshAllRepos", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [
         { name: "repo-a", url: "https://github.com/a/skills" },
         { name: "repo-b", url: "https://github.com/b/skills" },
@@ -431,6 +438,7 @@ describe("refreshAllRepos", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [
         { name: "good-repo", url: "https://github.com/good/repo" },
         { name: "bad-repo", url: "not-a-url" },
@@ -463,6 +471,7 @@ describe("refreshAllRepos", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [],
       agents: {},
     });
@@ -583,6 +592,7 @@ describe("getAllRepoSkills", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [
         { name: "repo-a", url: "https://github.com/a/skills" },
         { name: "repo-b", url: "https://github.com/b/skills" },
@@ -624,6 +634,7 @@ describe("getAllRepoSkills", () => {
       defaultAgent: "claude",
       defaultScope: "project",
       serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [],
       agents: {},
     });

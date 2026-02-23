@@ -4,6 +4,7 @@ import { removeSkillRecord } from "../core/manifest.js";
 import { getScopeLabel } from "../utils/fs.js";
 import { select, confirm } from "../utils/prompt.js";
 import { logger } from "../utils/logger.js";
+import { trackUninstall } from "../core/telemetry.js";
 
 export const uninstallCommand = new Command("uninstall")
   .alias("rm")
@@ -76,6 +77,7 @@ Examples:
         const success = await agent.uninstallSkill(skillName, undefined, scope);
         if (success) {
           removeSkillRecord(skillName, agent.name, scope);
+          trackUninstall(skillName, { agent: agent.name, scope });
           logger.success(`Uninstalled ${skillName} from ${agent.displayName}${scopeLabel}`);
         }
       }
@@ -140,6 +142,7 @@ Examples:
 
     if (success) {
       removeSkillRecord(skillName, agentName, scope);
+      trackUninstall(skillName, { agent: agentName, scope });
       logger.success(`Uninstalled ${skillName} from ${agent.displayName}${scopeLabel}`);
     }
   });

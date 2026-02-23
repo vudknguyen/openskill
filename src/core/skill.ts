@@ -12,6 +12,7 @@ export interface SkillInfo {
   relativePath: string;
   license?: string;
   compatibility?: string;
+  tags?: string;
   metadata?: Record<string, string>;
 }
 
@@ -51,6 +52,7 @@ export function loadSkillInfo(skillDir: string, basePath?: string): SkillInfo | 
     relativePath,
     license: skill.frontmatter.license,
     compatibility: skill.frontmatter.compatibility,
+    tags: skill.frontmatter.tags || skill.frontmatter.metadata?.tags,
     metadata: skill.frontmatter.metadata,
   };
 }

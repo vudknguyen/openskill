@@ -11,6 +11,7 @@ import { addSkillRecord } from "../core/manifest.js";
 import { installFromMarketplace } from "../core/marketplace-installer.js";
 import { parseGitUrl, safeJoinPath, getScopeLabel } from "../utils/fs.js";
 import { logger, createSpinner } from "../utils/logger.js";
+import { trackInstall } from "../core/telemetry.js";
 
 interface InstallContext {
   /** Repository owner/namespace (e.g., "anthropics") */
@@ -350,6 +351,14 @@ export async function installFromGitHub(
           repoPath: skillPath,
           commitHash: context.commitHash,
           installedAt: new Date().toISOString(),
+          scope,
+        });
+
+        // Track telemetry
+        trackInstall(skill.frontmatter.name, undefined, {
+          agent: agentName,
+          source: "git",
+          repo: `${context.owner}/${context.repo}`,
           scope,
         });
 

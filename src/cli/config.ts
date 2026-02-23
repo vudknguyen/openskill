@@ -14,6 +14,8 @@ Examples:
   $ osk config get defaultAgent         # Get a value
   $ osk config set defaultAgent cursor  # Set a value
   $ osk config set serverUrl https://openskill.example.com
+  $ osk config set telemetry on         # Enable anonymous telemetry
+  $ osk config set telemetry off        # Disable telemetry
   $ osk config path                     # Show config file path
   $ osk config add-repo name url        # Add a repository
   $ osk config rm-repo name             # Remove a repository
@@ -26,6 +28,7 @@ Examples:
     logger.log(`  Default agent: ${config.defaultAgent}`);
     logger.log(`  Default scope: ${config.defaultScope || "project"}`);
     logger.log(`  Server URL:    ${config.serverUrl}`);
+    logger.log(`  Telemetry:     ${config.telemetryEnabled ? "on" : "off"}`);
     logger.newline();
     logger.log("  Repositories:");
     for (const repo of config.repos) {
@@ -57,6 +60,10 @@ configCommand
       case "serverUrl":
         logger.log(config.serverUrl);
         break;
+      case "telemetry":
+      case "telemetryEnabled":
+        logger.log(config.telemetryEnabled ? "on" : "off");
+        break;
       case "repos":
         for (const repo of config.repos) {
           logger.log(`${repo.name}: ${repo.url}`);
@@ -74,7 +81,7 @@ configCommand
           }
         } else {
           logger.error(`Invalid config key: ${key}`);
-          logger.dim("Available keys: defaultAgent, defaultScope, serverUrl, repos, agents.<name>");
+          logger.dim("Available keys: defaultAgent, defaultScope, serverUrl, telemetry, repos, agents.<name>");
           process.exit(1);
         }
     }
@@ -120,6 +127,22 @@ configCommand
           process.exit(1);
         }
         break;
+      case "telemetry":
+      case "telemetryEnabled":
+        if (value === "on" || value === "true" || value === "1") {
+          config.telemetryEnabled = true;
+          saveConfig(config);
+          logger.success("Telemetry enabled. Thank you for helping improve OpenSkill!");
+        } else if (value === "off" || value === "false" || value === "0") {
+          config.telemetryEnabled = false;
+          saveConfig(config);
+          logger.success("Telemetry disabled");
+        } else {
+          logger.error(`Invalid value: ${value}`);
+          logger.dim("Use 'on' or 'off'");
+          process.exit(1);
+        }
+        break;
       default:
         if (key.startsWith("agents.") && key.endsWith(".skillPath")) {
           const agentName = key.replace("agents.", "").replace(".skillPath", "");
@@ -132,7 +155,7 @@ configCommand
           logger.success(`Set ${key} to ${value}`);
         } else {
           logger.error(`Invalid or read-only config key: ${key}`);
-          logger.dim("Writable keys: defaultAgent, defaultScope, serverUrl, agents.<name>.skillPath");
+          logger.dim("Writable keys: defaultAgent, defaultScope, serverUrl, telemetry, agents.<name>.skillPath");
           process.exit(1);
         }
     }

@@ -5,6 +5,7 @@ import { PromptCancelledError, confirm } from "../utils/prompt.js";
 import { loadConfig } from "../core/config.js";
 import { refreshAllRepos } from "../core/registry.js";
 import { logger, createSpinner } from "../utils/logger.js";
+import { trackStart, trackError, flushTelemetry } from "../core/telemetry.js";
 import { installCommand } from "./install.js";
 import { uninstallCommand } from "./uninstall.js";
 import { listCommand } from "./list.js";
@@ -103,19 +104,32 @@ program.addCommand(pushCommand);
 program.addCommand(publishCommand);
 program.addCommand(versionCommand);
 
+// Track CLI start
+trackStart();
+
 // Handle unhandled rejections (including PromptCancelledError)
 process.on("unhandledRejection", (reason) => {
   if (reason instanceof PromptCancelledError) {
+    flushTelemetry();
     process.exit(0);
   }
+  if (reason instanceof Error) {
+    trackError(reason, process.argv[2] || "unknown");
+  }
+  flushTelemetry();
   logger.rawError(reason);
   process.exit(1);
 });
 
+// Note: process.on("exit") cannot flush async telemetry - events persist to disk instead
+
 program.parseAsync().catch((err) => {
   if (err instanceof PromptCancelledError) {
+    flushTelemetry();
     process.exit(0);
   }
+  trackError(err, process.argv[2] || "unknown");
+  flushTelemetry();
   logger.error(err.message);
   process.exit(1);
 });

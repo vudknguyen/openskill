@@ -27,6 +27,7 @@ export interface Config {
   defaultAgent: string;
   defaultScope: InstallScope;
   serverUrl: string;
+  telemetryEnabled: boolean;
   repos: RepoConfig[];
   agents: Record<string, AgentConfig>;
 }
@@ -36,6 +37,7 @@ const DEFAULT_CONFIG: Config = {
   defaultAgent: "claude",
   defaultScope: "project",
   serverUrl: "http://localhost:3000",
+  telemetryEnabled: false,
   repos: [
     { name: "anthropic-official", url: "https://github.com/anthropics/skills" },
     { name: "openai-official", url: "https://github.com/openai/skills" },
@@ -148,6 +150,12 @@ export function loadConfig(): Config {
       ? rawConfig.serverUrl
       : DEFAULT_CONFIG.serverUrl;
 
+  // Validate telemetryEnabled
+  const telemetryEnabled =
+    typeof rawConfig.telemetryEnabled === "boolean"
+      ? rawConfig.telemetryEnabled
+      : DEFAULT_CONFIG.telemetryEnabled;
+
   // Validate agents
   const agents = { ...DEFAULT_CONFIG.agents };
   if (typeof rawConfig.agents === "object" && rawConfig.agents !== null) {
@@ -172,6 +180,7 @@ export function loadConfig(): Config {
     defaultAgent,
     defaultScope,
     serverUrl,
+    telemetryEnabled,
     agents,
     repos,
   };

@@ -57,6 +57,7 @@ export interface MarketplaceSearchResponse {
       shortDescription: string | null;
       installCount: number;
       avgRating: string | null;
+      tags: string | null;
     };
     author: { name: string } | null;
   }>;
@@ -92,7 +93,6 @@ export interface PublishInitParams {
   slug: string;
   fileHash: string;
   fileSize: number;
-  category?: string;
   shortDescription?: string;
   tags?: string;
   pricingType?: string;
@@ -113,7 +113,6 @@ export interface PublishCompleteParams {
   uploadKey: string;
   slug: string;
   fileHash: string;
-  category?: string;
   shortDescription?: string;
   tags?: string;
   changelog?: string;

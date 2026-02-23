@@ -11,6 +11,7 @@ import { checkMarketplaceUpdates, type MarketplaceUpdate } from "../core/marketp
 import { safeJoinPath } from "../utils/fs.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { autocomplete } from "../utils/prompt.js";
+import { trackUpdate } from "../core/telemetry.js";
 
 interface GitSkillUpdate {
   source: "git";
@@ -255,6 +256,7 @@ async function applyGitUpdate(update: GitSkillUpdate): Promise<void> {
     installedAt: new Date().toISOString(),
   });
 
+  trackUpdate(record.name, record.commitHash.slice(0, 7), latestCommit.slice(0, 7));
   logger.success(`Updated ${record.name} → ${record.agent}`);
 }
 
@@ -294,6 +296,8 @@ async function applyMarketplaceUpdate(
   serverOverride?: string,
 ): Promise<void> {
   const { record, update: mp } = update;
+  // Track as update (installFromMarketplace tracks as install, but this is an update)
+  trackUpdate(mp.slug, record.marketplaceVersion, mp.latestVersion);
   try {
     await installFromMarketplace(mp.slug, {
       agent: record.agent,

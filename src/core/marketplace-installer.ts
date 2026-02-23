@@ -7,6 +7,7 @@ import { addSkillRecord } from "./manifest.js";
 import { getAgent } from "../agents/index.js";
 import type { InstallScope } from "../agents/types.js";
 import { logger, createSpinner } from "../utils/logger.js";
+import { trackInstall } from "./telemetry.js";
 import {
   createMarketplaceClient,
   type MarketplaceClient,
@@ -135,6 +136,13 @@ export async function installFromMarketplace(
       source: "marketplace",
       marketplaceSlug: slug,
       marketplaceVersion: metadata.version,
+    });
+
+    // 8. Track telemetry
+    trackInstall(slug, metadata.version, {
+      agent: agentName,
+      source: "marketplace",
+      scope,
     });
 
     logger.success(

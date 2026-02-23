@@ -17,9 +17,8 @@ import {
 export const pushCommand = new Command("push")
   .description("Push a skill version to the OpenSkill marketplace (as draft)")
   .argument("[directory]", "Skill directory (default: current directory)", ".")
-  .option("--category <slug>", "Category slug")
   .option("--short-desc <text>", "Short description (300 chars max)")
-  .option("--tags <tags>", "Comma-separated tags")
+  .option("--tags <tags>", "Comma-separated tags (overrides SKILL.md metadata.tags)")
   .option("--changelog <text>", "Version changelog")
   .option("-y, --yes", "Skip confirmation prompt")
   .option("-s, --server <url>", "Server URL override")
@@ -29,7 +28,6 @@ export const pushCommand = new Command("push")
 Examples:
   $ osk push                                  # Push current directory
   $ osk push ./my-skill                       # Push specific directory
-  $ osk push . --category productivity        # With category
   $ osk push . --tags "pdf,reader" -y         # With tags, skip confirm
   $ osk push . --changelog "Fixed edge case"  # With changelog
 `
@@ -38,7 +36,6 @@ Examples:
     async (
       directory: string,
       options: {
-        category?: string;
         shortDesc?: string;
         tags?: string;
         changelog?: string;
@@ -80,6 +77,9 @@ Examples:
       const slug = skillMd.frontmatter.name;
       const version =
         skillMd.frontmatter.metadata?.version || "(auto from hash)";
+
+      // Get tags from CLI option, SKILL.md frontmatter.tags, or metadata.tags
+      const tags = options.tags || skillMd.frontmatter.tags || skillMd.frontmatter.metadata?.tags;
 
       // 4. Package directory
       const packSpinner = createSpinner("Packaging skill...");
@@ -125,9 +125,8 @@ Examples:
           slug,
           fileHash,
           fileSize: buffer.length,
-          category: options.category,
           shortDescription: options.shortDesc,
-          tags: options.tags,
+          tags,
           pricingType: "free",
           changelog: options.changelog,
         });
@@ -177,9 +176,8 @@ Examples:
           uploadKey: initResult.uploadKey!,
           slug,
           fileHash,
-          category: options.category,
           shortDescription: options.shortDesc,
-          tags: options.tags,
+          tags,
           changelog: options.changelog,
         });
 
