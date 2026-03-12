@@ -14,6 +14,12 @@ src/
 │   ├── update.ts     # Update command
 │   ├── search.ts     # Search command
 │   ├── browse.ts     # Browse command
+│   ├── login.ts      # Marketplace authentication
+│   ├── logout.ts     # Log out and revoke token
+│   ├── whoami.ts     # Show current login status
+│   ├── push.ts       # Push skill to marketplace
+│   ├── publish.ts    # Make pushed skill public
+│   ├── audit.ts      # Security audit
 │   ├── repo.ts       # Repository management
 │   ├── convert.ts    # Format conversion
 │   ├── init.ts       # Skill initialization
@@ -24,11 +30,19 @@ src/
 │   ├── completion.ts # Shell completions
 │   └── version.ts    # Version command
 ├── core/             # Business logic
+│   ├── auth.ts       # Authentication token management
 │   ├── config.ts     # Configuration management
 │   ├── git.ts        # Git operations
 │   ├── skill.ts      # Skill parsing/validation
 │   ├── registry.ts   # Repository registry
-│   └── manifest.ts   # Installed skills tracking
+│   ├── manifest.ts   # Installed skills tracking
+│   ├── marketplace-client.ts    # Marketplace API client
+│   ├── marketplace-installer.ts # Install from marketplace
+│   ├── marketplace-search.ts    # Marketplace search
+│   ├── marketplace-update-checker.ts # Update checking
+│   ├── package.ts    # Skill packaging
+│   ├── telemetry.ts  # Anonymous telemetry
+│   └── token-refresh.ts # Token refresh logic
 ├── agents/           # Agent adapters
 │   ├── types.ts      # Agent interface
 │   ├── index.ts      # Agent registry
@@ -37,9 +51,11 @@ src/
 │   ├── codex.ts      # Codex adapter
 │   └── antigravity.ts # Antigravity adapter
 └── utils/            # Utilities
+    ├── audit-display.ts # Audit results formatting
     ├── logger.ts     # Colored console output
     ├── prompt.ts     # Interactive prompts
     ├── markdown.ts   # Frontmatter parsing
+    ├── url.ts        # URL utilities
     └── fs.ts         # File system helpers
 ```
 

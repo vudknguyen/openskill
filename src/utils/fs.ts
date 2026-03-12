@@ -246,8 +246,8 @@ export function parseGitUrl(url: string): ParsedGitUrl | null {
     };
   }
 
-  // GitHub shorthand: github:owner/repo
-  match = url.match(/^github:([^/]+)\/([^/]+)$/);
+  // GitHub shorthand: github:owner/repo[/path]
+  match = url.match(/^github:([^/]+)\/([^/]+?)(?:\/(.+))?$/);
   if (match) {
     const owner = match[1];
     const repo = match[2];
@@ -258,6 +258,7 @@ export function parseGitUrl(url: string): ParsedGitUrl | null {
       host: "github.com",
       owner,
       repo,
+      path: match[3],
       cloneUrl: `https://github.com/${owner}/${repo}.git`,
     };
   }

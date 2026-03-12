@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { searchSkills, refreshAllRepos, loadRepoCache } from "../core/registry.js";
-import { searchMarketplace, type MarketplaceSkillResult } from "../core/marketplace-search.js";
+import { discoverSkills, type DiscoveredSkillResult } from "../core/marketplace-search.js";
 import { loadConfig } from "../core/config.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { interactiveInstallFromSkills, interactiveInstallFromMixed } from "./install.js";
@@ -60,15 +60,27 @@ Examples:
       return;
     }
 
-    // Search both local repos and marketplace in parallel
+    // Search local repos and discovery endpoint in parallel
     logger.info(`Searching "${query}"...`);
 
-    const [repoResults, marketplaceResults] = await Promise.all([
+    const [repoResults, discoveredResults] = await Promise.all([
       searchSkills(query),
-      searchMarketplace(query, { server: options.server }).catch(() => [] as MarketplaceSkillResult[]),
+      discoverSkills(query, { server: options.server }).catch(() => [] as DiscoveredSkillResult[]),
     ]);
 
-    const totalCount = repoResults.length + marketplaceResults.length;
+    // Split discovered results by source
+    const marketplaceResults = discoveredResults.filter((s) => s.source === "openskill");
+    const githubResults = discoveredResults.filter((s) => s.source === "github");
+
+    // Group local repo results by repo name
+    const repoGroups = new Map<string, typeof repoResults>();
+    for (const skill of repoResults) {
+      const group = repoGroups.get(skill.repo) || [];
+      group.push(skill);
+      repoGroups.set(skill.repo, group);
+    }
+
+    const totalCount = repoResults.length + discoveredResults.length;
 
     if (totalCount === 0) {
       logger.warn("No skills found");
@@ -81,36 +93,77 @@ Examples:
       return;
     }
 
-    // Marketplace results
+    let sectionsPrinted = 0;
+
+    // openskill (marketplace) results
     if (marketplaceResults.length > 0) {
-      logger.header(`Marketplace (${marketplaceResults.length})`);
+      if (sectionsPrinted > 0) logger.newline();
+      logger.header(`openskill (${marketplaceResults.length})`);
       for (const skill of marketplaceResults.slice(0, 20)) {
         logger.newline();
         logger.skill(skill.name, skill.shortDescription || skill.description);
         const meta = [
+          formatAuditBadge(skill.auditStatus),
           skill.authorName && `by ${skill.authorName}`,
           skill.tags && `[${skill.tags}]`,
           `osk install ${skill.slug} --marketplace`,
         ].filter(Boolean).join("  ·  ");
         logger.dim(`    ${meta}`);
       }
+      sectionsPrinted++;
     }
 
-    // Repo results
-    if (repoResults.length > 0) {
-      if (marketplaceResults.length > 0) logger.newline();
-      logger.header(`Repositories (${repoResults.length})`);
-      displayRepoResults(repoResults);
+    // github (discovered) results
+    if (githubResults.length > 0) {
+      if (sectionsPrinted > 0) logger.newline();
+      logger.header(`github (${githubResults.length})`);
+      for (const skill of githubResults.slice(0, 20)) {
+        logger.newline();
+        logger.skill(skill.name, skill.shortDescription || skill.description);
+        const meta = [
+          formatAuditBadge(skill.auditStatus),
+          skill.repoFullName,
+          skill.stars != null && skill.stars > 0 && `★ ${skill.stars}`,
+          `osk install ${skill.repoFullName}`,
+        ].filter(Boolean).join("  ·  ");
+        logger.dim(`    ${meta}`);
+      }
+      sectionsPrinted++;
+    }
+
+    // Local repo results — one section per repo
+    for (const [repoName, skills] of repoGroups) {
+      if (sectionsPrinted > 0) logger.newline();
+      logger.header(`${repoName} (${skills.length})`);
+      for (const skill of skills.slice(0, 20)) {
+        logger.newline();
+        logger.skill(skill.name, skill.description);
+        logger.dim(`    osk install ${skill.repoOwner}/${skill.repoName} ${skill.name}`);
+      }
+      if (skills.length > 20) {
+        logger.newline();
+        logger.dim(`  ...and ${skills.length - 20} more results`);
+      }
+      sectionsPrinted++;
     }
 
     if (options.install) {
       logger.newline();
-      await interactiveInstallFromMixed(repoResults, marketplaceResults);
+      await interactiveInstallFromMixed(repoResults, marketplaceResults, githubResults);
     } else {
       logger.newline();
       logger.dim("Tip: Use 'osk search <query> -i' to install interactively");
     }
   });
+
+function formatAuditBadge(status: "pass" | "warning" | "fail" | "unscanned" | null): string | null {
+  switch (status) {
+    case "pass": return "✔ audited";
+    case "warning": return "⚠ audit warnings";
+    case "fail": return "✖ audit failed";
+    default: return null;
+  }
+}
 
 function displayRepoResults(results: Array<{ name: string; description: string; repo: string }>) {
   const maxDisplay = 20;

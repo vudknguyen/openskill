@@ -37,7 +37,7 @@ const DEFAULT_CONFIG: Config = {
   defaultAgent: "claude",
   defaultScope: "project",
   serverUrl: "http://localhost:3000",
-  telemetryEnabled: false,
+  telemetryEnabled: true,
   repos: [
     { name: "anthropic-official", url: "https://github.com/anthropics/skills" },
     { name: "openai-official", url: "https://github.com/openai/skills" },

@@ -123,6 +123,24 @@ Skills are installed to agent-specific directories:
 | Codex       | `~/.codex/skills/`       | `.codex/skills/`       |
 | Antigravity | `~/.antigravity/skills/` | `.antigravity/skills/` |
 
+## Publishing to the Marketplace
+
+You can publish skills directly to the OpenSkill marketplace:
+
+```bash
+# Authenticate
+osk login
+
+# Audit your skill (recommended)
+osk audit ./my-skill
+
+# Push as draft
+osk push ./my-skill
+
+# Make it public
+osk publish my-skill
+```
+
 ## Next Steps
 
 - [Commands Reference](commands.md) - Learn all available commands

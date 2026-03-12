@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { existsSync } from "fs";
 import { join } from "path";
-import { autocomplete, select, closePrompt } from "../utils/prompt.js";
+import { autocomplete, select, confirm, closePrompt } from "../utils/prompt.js";
 import { getAgent, getAllAgents, getAgentNames, InstallScope } from "../agents/index.js";
 import { loadConfig } from "../core/config.js";
 import { cloneRepo, getRepoCommit } from "../core/git.js";
@@ -456,21 +456,38 @@ export async function interactiveInstallFromMixed(
     description: string;
     shortDescription: string | null;
     authorName: string | null;
+    auditStatus?: "pass" | "warning" | "fail" | "unscanned" | null;
   }>,
+  githubSkills: Array<{
+    name: string;
+    description: string;
+    repoFullName: string | null;
+    stars: number | null;
+    auditStatus?: "pass" | "warning" | "fail" | "unscanned" | null;
+  }> = [],
 ): Promise<void> {
   const { truncate } = await import("../utils/fs.js");
   const { selectScope } = await import("../utils/prompt.js");
 
   type RepoChoice = { source: "repo"; skill: (typeof repoSkills)[number] };
   type MarketChoice = { source: "marketplace"; skill: (typeof marketplaceSkills)[number] };
+  type GitHubChoice = { source: "github"; skill: (typeof githubSkills)[number] };
 
-  const choices: Array<{ name: string; hint: string; value: RepoChoice | MarketChoice }> = [];
+  const choices: Array<{ name: string; hint: string; value: RepoChoice | MarketChoice | GitHubChoice }> = [];
 
   for (const s of marketplaceSkills) {
     choices.push({
       name: s.name,
       hint: `marketplace${s.authorName ? ` · ${s.authorName}` : ""} · ${truncate(s.shortDescription || s.description, 40)}`,
       value: { source: "marketplace", skill: s },
+    });
+  }
+
+  for (const s of githubSkills) {
+    choices.push({
+      name: s.name,
+      hint: `github · ${s.repoFullName || "unknown"}${s.stars ? ` · ★ ${s.stars}` : ""} · ${truncate(s.description, 40)}`,
+      value: { source: "github", skill: s },
     });
   }
 
@@ -491,6 +508,32 @@ export async function interactiveInstallFromMixed(
   );
 
   if (selected && selected.length > 0) {
+    // Check for skills that haven't passed audit
+    const unaudited = selected.filter((item) => {
+      if (item.source === "repo") return false;
+      const skill = item.skill as { auditStatus?: string | null; name: string };
+      return skill.auditStatus && skill.auditStatus !== "pass";
+    });
+
+    if (unaudited.length > 0) {
+      logger.newline();
+      for (const item of unaudited) {
+        const skill = item.skill as { name: string; auditStatus?: string | null };
+        if (skill.auditStatus === "fail") {
+          logger.warn(`${skill.name} has failed its security audit`);
+        } else if (skill.auditStatus === "warning") {
+          logger.warn(`${skill.name} has audit warnings`);
+        } else if (skill.auditStatus === "unscanned") {
+          logger.warn(`${skill.name} has not been audited`);
+        }
+      }
+      const proceed = await confirm("Continue installing unaudited/failed skill(s)?");
+      if (!proceed) {
+        logger.dim("Installation cancelled");
+        return;
+      }
+    }
+
     logger.newline();
     const scope = await selectScope();
     logger.newline();
@@ -502,6 +545,14 @@ export async function interactiveInstallFromMixed(
           skillName: s.name,
           scope,
         });
+      } else if (item.source === "github") {
+        const s = item.skill as (typeof githubSkills)[number];
+        if (s.repoFullName) {
+          const [owner, repo] = s.repoFullName.split("/");
+          await installFromGitHub(owner, repo, undefined, { scope });
+        } else {
+          logger.warn(`Cannot install ${s.name}: missing repository information`);
+        }
       } else {
         const s = item.skill as (typeof marketplaceSkills)[number];
         await installFromMarketplace(s.slug, { scope });

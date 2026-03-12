@@ -133,6 +133,17 @@ describe("parseGitUrl", () => {
       });
     });
 
+    it("parses github:owner/repo/path", () => {
+      const result = parseGitUrl("github:ComposioHQ/awesome-claude-skills/composio-skills/ip2location-io-automation");
+      expect(result).toEqual({
+        host: "github.com",
+        owner: "ComposioHQ",
+        repo: "awesome-claude-skills",
+        path: "composio-skills/ip2location-io-automation",
+        cloneUrl: "https://github.com/ComposioHQ/awesome-claude-skills.git",
+      });
+    });
+
     it("parses owner/repo (assumes GitHub)", () => {
       const result = parseGitUrl("anthropics/skills");
       expect(result).toEqual({

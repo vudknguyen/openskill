@@ -64,6 +64,32 @@ export interface MarketplaceSearchResponse {
   pagination: { total: number };
 }
 
+export interface UnifiedSkill {
+  source: "openskill" | "github";
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  shortDescription?: string;
+  authorName?: string;
+  tags?: string;
+  stars?: number;
+  installCount?: number;
+  avgRating?: string;
+  repoUrl?: string;
+  repoFullName?: string;
+  skillPath?: string;
+  defaultBranch?: string;
+  license?: string;
+  compatibility?: string;
+  auditStatus?: "pass" | "warning" | "fail" | "unscanned" | null;
+}
+
+export interface DiscoverResponse {
+  skills: UnifiedSkill[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
 export interface DownloadMetadata {
   downloadUrl: string;
   version: string;
@@ -118,13 +144,34 @@ export interface PublishCompleteParams {
   changelog?: string;
 }
 
+/** Mirrors AuditFinding in skill-marketplace/src/lib/services/skill-audit-service.ts */
+export interface AuditFinding {
+  rule: string;
+  severity: "critical" | "warning" | "info";
+  message: string;
+  line: number;
+  snippet: string;
+}
+
+export interface AuditSkillResponse {
+  status: "pass" | "warning" | "fail";
+  score: number;
+  scanVersion: string;
+  scannedAt: string;
+  findings: AuditFinding[];
+  skill: { name: string; description: string };
+}
+
 export interface PushCompleteResponse {
   success: boolean;
   slug: string;
   version: string;
   name: string;
+  status?: string;
+  unchanged?: boolean;
   error?: string;
   details?: string[];
+  auditFindings?: AuditFinding[];
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +286,25 @@ export class MarketplaceClient {
     return (await res.json()) as MarketplaceSearchResponse;
   }
 
+  async discoverSkills(
+    query: string,
+    options?: { limit?: number; source?: string },
+  ): Promise<DiscoverResponse> {
+    const params = new URLSearchParams({
+      q: query,
+      limit: String(options?.limit ?? 20),
+    });
+    if (options?.source) params.set("source", options.source);
+    const res = await this.get(`/api/skills/discover?${params}`);
+    if (!res.ok) {
+      throw new MarketplaceApiError(
+        `Discovery failed (${res.status})`,
+        res.status,
+      );
+    }
+    return (await res.json()) as DiscoverResponse;
+  }
+
   async getSkillDownload(
     slug: string,
     version?: string,
@@ -285,6 +351,21 @@ export class MarketplaceClient {
       );
     }
     return body;
+  }
+
+  // --- Audit ---------------------------------------------------------------
+
+  async auditSkill(content: string): Promise<AuditSkillResponse> {
+    const res = await this.post("/api/skills/audit", { content });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      throw new MarketplaceApiError(
+        (body.error as string) || `Audit failed (${res.status})`,
+        res.status,
+        body,
+      );
+    }
+    return (await res.json()) as AuditSkillResponse;
   }
 
   // --- Publish -------------------------------------------------------------

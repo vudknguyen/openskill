@@ -28,7 +28,7 @@ Examples:
     logger.log(`  Default agent: ${config.defaultAgent}`);
     logger.log(`  Default scope: ${config.defaultScope || "project"}`);
     logger.log(`  Server URL:    ${config.serverUrl}`);
-    logger.log(`  Telemetry:     ${config.telemetryEnabled ? "on" : "off"}`);
+    logger.log(`  Telemetry:     ${config.telemetryEnabled !== false ? "on" : "off"}`);
     logger.newline();
     logger.log("  Repositories:");
     for (const repo of config.repos) {
@@ -62,7 +62,7 @@ configCommand
         break;
       case "telemetry":
       case "telemetryEnabled":
-        logger.log(config.telemetryEnabled ? "on" : "off");
+        logger.log(config.telemetryEnabled !== false ? "on" : "off");
         break;
       case "repos":
         for (const repo of config.repos) {

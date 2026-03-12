@@ -278,6 +278,108 @@ osk repo sync
 
 ---
 
+## login
+
+Authenticate with the OpenSkill marketplace using the device auth flow.
+
+```bash
+osk login
+```
+
+Opens a browser to complete authentication. The token is stored locally for subsequent commands.
+
+---
+
+## logout
+
+Log out of the marketplace and revoke the current token.
+
+```bash
+osk logout
+```
+
+---
+
+## whoami
+
+Show the current login status and authenticated user.
+
+```bash
+osk whoami
+```
+
+---
+
+## push
+
+Push a skill to the marketplace as a draft.
+
+```bash
+osk push [path]
+```
+
+**Arguments:**
+
+- `path` - Path to skill directory (default: current directory)
+
+**Examples:**
+
+```bash
+# Push from specific directory
+osk push ./my-skill
+
+# Push from current directory
+osk push
+```
+
+The skill must pass validation before it can be pushed. After pushing, the skill is in draft status — use `osk publish` to make it public.
+
+---
+
+## publish
+
+Make a previously pushed draft skill public.
+
+```bash
+osk publish <slug>
+```
+
+**Arguments:**
+
+- `slug` - Skill slug to publish
+
+**Examples:**
+
+```bash
+osk publish my-skill
+```
+
+---
+
+## audit
+
+Run a security audit on a local skill.
+
+```bash
+osk audit [path]
+```
+
+**Arguments:**
+
+- `path` - Path to skill file or directory (default: current directory)
+
+**Examples:**
+
+```bash
+# Audit a specific skill
+osk audit ./my-skill/SKILL.md
+
+# Audit current directory
+osk audit
+```
+
+---
+
 ## convert
 
 Convert a skill between agent formats.
@@ -449,4 +551,4 @@ Show detailed help for a topic.
 osk man <topic>
 ```
 
-**Topics:** osk, install, uninstall, list, update, search, browse, repo, convert, init, validate, which, skill
+**Topics:** osk, install, uninstall, list, update, search, browse, login, logout, whoami, push, publish, audit, repo, convert, init, validate, which, skill

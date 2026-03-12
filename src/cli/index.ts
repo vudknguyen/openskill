@@ -25,6 +25,7 @@ import { logoutCommand } from "./logout.js";
 import { whoamiCommand } from "./whoami.js";
 import { pushCommand } from "./push.js";
 import { publishCommand } from "./publish.js";
+import { auditCommand } from "./audit.js";
 import { versionCommand, getVersion } from "./version.js";
 
 const program = new Command();
@@ -102,6 +103,7 @@ program.addCommand(logoutCommand);
 program.addCommand(whoamiCommand);
 program.addCommand(pushCommand);
 program.addCommand(publishCommand);
+program.addCommand(auditCommand);
 program.addCommand(versionCommand);
 
 // Track CLI start
@@ -123,7 +125,9 @@ process.on("unhandledRejection", (reason) => {
 
 // Note: process.on("exit") cannot flush async telemetry - events persist to disk instead
 
-program.parseAsync().catch((err) => {
+program.parseAsync().then(() => {
+  flushTelemetry();
+}).catch((err) => {
   if (err instanceof PromptCancelledError) {
     flushTelemetry();
     process.exit(0);

@@ -27,6 +27,8 @@ OpenSkill (`osk`) is a lightweight CLI tool that manages skills (reusable prompt
 ### Key Features
 
 - Install skills from any Git repository (GitHub, GitLab, self-hosted)
+- Publish skills to the OpenSkill marketplace
+- Security audit for skills before publishing
 - Convert skills between agent formats
 - Interactive selection with autocomplete
 - Global and project-level installation

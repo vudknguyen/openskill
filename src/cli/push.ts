@@ -7,11 +7,13 @@ import { parseSkillMd } from "../utils/markdown.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { confirm } from "../utils/prompt.js";
 import { validateServerUrl } from "../utils/url.js";
+import { displayFindings } from "../utils/audit-display.js";
 import {
   MarketplaceClient,
   MarketplaceApiError,
   type PushInitResponse,
   type PushCompleteResponse,
+  type AuditFinding,
 } from "../core/marketplace-client.js";
 
 export const pushCommand = new Command("push")
@@ -185,14 +187,29 @@ Examples:
         logger.newline();
         logger.success(`${result.name}@${result.version} pushed to marketplace (draft)`);
         logger.dim(`  ${serverUrl}/skills/${result.slug}`);
+
+        // Show audit warnings on success
+        if (result.auditFindings && result.auditFindings.length > 0) {
+          logger.newline();
+          displayFindings(result.auditFindings, "Security audit warnings:");
+        }
+
         logger.newline();
         logger.dim("Run 'osk publish <slug>' to make it public.");
       } catch (err) {
         completeSpinner.stop();
         if (err instanceof MarketplaceApiError) {
-          const body = err.body as PushCompleteResponse | undefined;
-          if (body?.details && Array.isArray(body.details)) {
-            logger.error(`${err.message}: ${body.details.join(", ")}`);
+          const body = err.body as Record<string, unknown> | undefined;
+
+          // Audit failure with findings
+          if (body?.auditStatus === "fail" && Array.isArray(body?.findings)) {
+            logger.error("Skill failed security audit");
+            logger.newline();
+            displayFindings(body.findings as AuditFinding[]);
+            logger.newline();
+            logger.dim("Fix the flagged issues and try again.");
+          } else if (body?.details && Array.isArray(body.details)) {
+            logger.error(`${err.message}: ${(body.details as string[]).join(", ")}`);
           } else {
             logger.error(err.message);
           }
@@ -205,3 +222,4 @@ Examples:
       }
     }
   );
+

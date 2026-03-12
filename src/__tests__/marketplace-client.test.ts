@@ -3,19 +3,9 @@ import {
   MarketplaceClient,
   MarketplaceApiError,
 } from "../core/marketplace-client.js";
+import { mockFetch } from "./helpers/mock-fetch.js";
 
 const SERVER = "https://marketplace.example.com";
-
-function mockFetch(response: Partial<Response>) {
-  const fn = vi.fn().mockResolvedValue({
-    ok: true,
-    status: 200,
-    json: () => Promise.resolve({}),
-    ...response,
-  });
-  vi.stubGlobal("fetch", fn);
-  return fn;
-}
 
 beforeEach(() => {
   vi.restoreAllMocks();

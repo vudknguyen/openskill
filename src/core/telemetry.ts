@@ -134,9 +134,9 @@ export class TelemetryClient {
       return false;
     }
 
-    // Check config setting (default is false/opt-out)
+    // Check config setting (default is true/opt-in)
     const config = loadConfig();
-    return config.telemetryEnabled === true;
+    return config.telemetryEnabled !== false;
   }
 
   /**
