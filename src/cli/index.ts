@@ -26,6 +26,7 @@ import { whoamiCommand } from "./whoami.js";
 import { pushCommand } from "./push.js";
 import { publishCommand } from "./publish.js";
 import { auditCommand } from "./audit.js";
+import { orgCommand } from "./org.js";
 import { versionCommand, getVersion } from "./version.js";
 
 const program = new Command();
@@ -104,6 +105,7 @@ program.addCommand(whoamiCommand);
 program.addCommand(pushCommand);
 program.addCommand(publishCommand);
 program.addCommand(auditCommand);
+program.addCommand(orgCommand);
 program.addCommand(versionCommand);
 
 // Track CLI start

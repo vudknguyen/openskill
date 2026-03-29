@@ -178,6 +178,41 @@ export interface PushCompleteResponse {
 // Client
 // ---------------------------------------------------------------------------
 
+export interface OrgSummary {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  plan: string;
+  seatLimit: number;
+  requireAuditPass: boolean;
+  role: string;
+}
+
+export interface OrgMemberInfo {
+  id: string;
+  userId: string;
+  role: string;
+  createdAt: string;
+  userName: string;
+  userEmail: string;
+  userImage: string | null;
+}
+
+export interface OrgSkillsResponse {
+  organization: { id: string; name: string; slug: string; requireAuditPass: boolean };
+  skills: Array<{
+    orgSkillId: string;
+    skillId: number;
+    skillSlug: string;
+    skillName: string;
+    skillDescription: string;
+    skillAuditStatus: string;
+    addedBy: string;
+    addedAt: string;
+  }>;
+}
+
 export class MarketplaceClient {
   constructor(private readonly serverUrl: string) {}
 
@@ -207,6 +242,13 @@ export class MarketplaceClient {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(body),
+    });
+  }
+
+  private async del(path: string, token: string): Promise<Response> {
+    return fetch(`${this.serverUrl}${path}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
     });
   }
 
@@ -425,6 +467,65 @@ export class MarketplaceClient {
     }
     const arrayBuffer = await res.arrayBuffer();
     return Buffer.from(arrayBuffer);
+  }
+
+  // --- Organizations -------------------------------------------------------
+
+  async listOrgs(token: string): Promise<OrgSummary[]> {
+    const res = await this.get("/api/orgs", token);
+    if (!res.ok) throw new MarketplaceApiError(`Failed to list orgs (${res.status})`, res.status);
+    return (await res.json()) as OrgSummary[];
+  }
+
+  async createOrg(data: { name: string; slug: string; description?: string }, token: string): Promise<{ id: string; slug: string }> {
+    const res = await this.post("/api/orgs", data, token);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MarketplaceApiError((body as { error?: string }).error || `Failed (${res.status})`, res.status, body);
+    }
+    return (await res.json()) as { id: string; slug: string };
+  }
+
+  async getOrgMembers(orgId: string, token: string): Promise<OrgMemberInfo[]> {
+    const res = await this.get(`/api/orgs/${orgId}/members`, token);
+    if (!res.ok) throw new MarketplaceApiError(`Failed to get members (${res.status})`, res.status);
+    return (await res.json()) as OrgMemberInfo[];
+  }
+
+  async inviteOrgMember(orgId: string, email: string, role: string, token: string): Promise<{ id: string; token: string }> {
+    const res = await this.post(`/api/orgs/${orgId}/invites`, { email, role }, token);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MarketplaceApiError((body as { error?: string }).error || `Failed (${res.status})`, res.status, body);
+    }
+    return (await res.json()) as { id: string; token: string };
+  }
+
+  async removeOrgMember(orgId: string, userId: string, token: string): Promise<void> {
+    const res = await this.del(`/api/orgs/${orgId}/members/${userId}`, token);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MarketplaceApiError((body as { error?: string }).error || `Failed (${res.status})`, res.status, body);
+    }
+  }
+
+  async getOrgSkills(orgId: string, token: string): Promise<OrgSkillsResponse> {
+    const res = await this.get(`/api/orgs/${orgId}/skills`, token);
+    if (!res.ok) throw new MarketplaceApiError(`Failed to get org skills (${res.status})`, res.status);
+    return (await res.json()) as OrgSkillsResponse;
+  }
+
+  async addSkillToOrg(orgId: string, skillSlug: string, token: string): Promise<void> {
+    const res = await this.post(`/api/orgs/${orgId}/skills`, { skillSlug }, token);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MarketplaceApiError((body as { error?: string }).error || `Failed (${res.status})`, res.status, body);
+    }
+  }
+
+  async removeSkillFromOrg(orgId: string, skillId: number, token: string): Promise<void> {
+    const res = await this.del(`/api/orgs/${orgId}/skills/${skillId}`, token);
+    if (!res.ok) throw new MarketplaceApiError(`Failed to remove skill (${res.status})`, res.status);
   }
 }
 

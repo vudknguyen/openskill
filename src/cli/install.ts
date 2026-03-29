@@ -12,6 +12,8 @@ import { installFromMarketplace } from "../core/marketplace-installer.js";
 import { parseGitUrl, safeJoinPath, getScopeLabel } from "../utils/fs.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { trackInstall } from "../core/telemetry.js";
+import { getValidAuth } from "../core/token-refresh.js";
+import { createMarketplaceClient } from "../core/marketplace-client.js";
 
 interface InstallContext {
   /** Repository owner/namespace (e.g., "anthropics") */
@@ -35,6 +37,7 @@ export const installCommand = new Command("install")
   .option("-m, --marketplace", "Install from the OpenSkill marketplace")
   .option("--version <version>", "Specific marketplace version to install")
   .option("-y, --yes", "Skip interactive prompts, use defaults")
+  .option("--org <org>", "Install from organization's skill registry")
   .addHelpText(
     "after",
     `
@@ -49,6 +52,7 @@ Examples:
   $ osk install pdf                            # Search and install by name
   $ osk install pdf-reader -m                  # Install from marketplace
   $ osk install pdf-reader -m --version 1.0.0  # Specific marketplace version
+  $ osk install pdf-reader --org my-team       # Install from org registry
 `
   )
   .action(async (source: string, skillArg: string | undefined, options) => {
@@ -71,6 +75,21 @@ Examples:
       }
 
       const scope: InstallScope = options.global ? "global" : "project";
+
+      // Org registry install path
+      if (options.org) {
+        try {
+          await installFromOrgRegistry(source, options.org, {
+            agent: options.target,
+            version: options.version,
+            scope,
+          });
+        } catch (err) {
+          logger.error(err instanceof Error ? err.message : String(err));
+          process.exit(1);
+        }
+        return;
+      }
 
       // Marketplace install path
       if (options.marketplace) {
@@ -567,38 +586,127 @@ async function installByName(
 ): Promise<void> {
   logger.info(`Searching for skill: ${name}...`);
 
-  const results = await searchSkills(name);
+  const { discoverSkills: discoverMarketplaceSkills } = await import("../core/marketplace-search.js");
 
-  if (results.length === 0) {
+  // Search local repos and marketplace in parallel
+  const [repoResults, discoveredResults] = await Promise.all([
+    searchSkills(name),
+    discoverMarketplaceSkills(name).catch(() => []),
+  ]);
+
+  const marketplaceResults = discoveredResults.filter((s) => s.source === "openskill");
+  const githubResults = discoveredResults.filter((s) => s.source === "github");
+
+  const totalCount = repoResults.length + discoveredResults.length;
+
+  if (totalCount === 0) {
     logger.error(`No skills found matching: ${name}`);
     logger.dim("Try updating repositories with: osk update --repos");
     process.exit(1);
   }
 
-  let selectedSkill = results.find((s) => s.name.toLowerCase() === name.toLowerCase());
-
-  if (!selectedSkill && results.length > 1 && !options.yes) {
-    selectedSkill = await select(
-      "Multiple skills found. Select one:",
-      results.slice(0, 10).map((s) => ({
-        name: s.name,
-        hint: `${s.description} (${s.repo})`,
-        value: s,
-      }))
-    );
-  } else if (!selectedSkill) {
-    selectedSkill = results[0];
-  }
-
-  if (!selectedSkill) {
-    logger.error(`Skill not found: ${name}`);
-    process.exit(1);
-  }
-
-  await installFromGitHub(
-    selectedSkill.repoOwner,
-    selectedSkill.repoName,
-    selectedSkill.skillPath,
-    options
+  // Exact match in marketplace — install directly
+  const exactMarketplace = marketplaceResults.find(
+    (s) => s.slug.toLowerCase() === name.toLowerCase() || s.name.toLowerCase() === name.toLowerCase()
   );
+  if (exactMarketplace) {
+    await installFromMarketplace(exactMarketplace.slug, {
+      agent: options.agent,
+      scope: options.scope,
+    });
+    return;
+  }
+
+  // Exact match in local repos
+  const exactRepo = repoResults.find((s) => s.name.toLowerCase() === name.toLowerCase());
+  if (exactRepo) {
+    await installFromGitHub(exactRepo.repoOwner, exactRepo.repoName, exactRepo.skillPath, options);
+    return;
+  }
+
+  // Exact match in GitHub discovered
+  const exactGithub = githubResults.find(
+    (s) => s.slug.toLowerCase() === name.toLowerCase() || s.name.toLowerCase() === name.toLowerCase()
+  );
+  if (exactGithub && exactGithub.repoFullName) {
+    const [owner, repo] = exactGithub.repoFullName.split("/");
+    await installFromGitHub(owner, repo, undefined, options);
+    return;
+  }
+
+  // No exact match — present combined choices
+  if (options.yes) {
+    // In non-interactive mode, pick first available result
+    if (marketplaceResults.length > 0) {
+      await installFromMarketplace(marketplaceResults[0].slug, {
+        agent: options.agent,
+        scope: options.scope,
+      });
+    } else if (repoResults.length > 0) {
+      await installFromGitHub(repoResults[0].repoOwner, repoResults[0].repoName, repoResults[0].skillPath, options);
+    } else if (githubResults.length > 0 && githubResults[0].repoFullName) {
+      const [owner, repo] = githubResults[0].repoFullName.split("/");
+      await installFromGitHub(owner, repo, undefined, options);
+    }
+    return;
+  }
+
+  await interactiveInstallFromMixed(repoResults, marketplaceResults, githubResults);
+}
+
+// ============================================
+// Org Registry Install
+// ============================================
+
+async function installFromOrgRegistry(
+  skillSlug: string,
+  orgSlugOrId: string,
+  options: { agent?: string; version?: string; scope: InstallScope },
+) {
+  const auth = await getValidAuth();
+  if (!auth) {
+    throw new Error("Not logged in. Run 'osk login' first.");
+  }
+
+  const client = createMarketplaceClient();
+  const spinner = createSpinner("Checking organization registry...");
+
+  // Resolve org
+  const orgs = await client.listOrgs(auth.accessToken);
+  const org = orgs.find((o) => o.slug === orgSlugOrId || o.id === orgSlugOrId);
+  if (!org) {
+    spinner.stop("Organization not found");
+    throw new Error(`Organization "${orgSlugOrId}" not found. Run 'osk org ls' to see your organizations.`);
+  }
+
+  // Check if skill is in org registry
+  const result = await client.getOrgSkills(org.id, auth.accessToken);
+  const orgSkill = result.skills.find((s) => s.skillSlug === skillSlug);
+  if (!orgSkill) {
+    spinner.stop("Skill not in org registry");
+    const available = result.skills.map((s) => s.skillSlug).join(", ");
+    throw new Error(
+      `Skill "${skillSlug}" is not in ${org.name}'s registry.${available ? ` Available: ${available}` : " Registry is empty."}`
+    );
+  }
+
+  // Check audit policy
+  if (result.organization.requireAuditPass && orgSkill.skillAuditStatus !== "pass") {
+    spinner.stop("Blocked by audit policy");
+    throw new Error(
+      `Skill "${skillSlug}" has audit status "${orgSkill.skillAuditStatus}". ` +
+      `Organization policy requires skills to pass audit. Contact your org admin.`
+    );
+  }
+
+  spinner.stop(`Found "${orgSkill.skillName}" in ${org.name}'s registry`);
+
+  // Install via marketplace (the skill is a marketplace skill linked to the org)
+  await installFromMarketplace(skillSlug, {
+    agent: options.agent,
+    version: options.version,
+    scope: options.scope,
+  });
+
+  logger.dim(`  Installed from ${org.name}'s org registry`);
 }
