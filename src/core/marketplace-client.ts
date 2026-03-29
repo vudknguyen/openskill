@@ -123,6 +123,8 @@ export interface PublishInitParams {
   tags?: string;
   pricingType?: string;
   changelog?: string;
+  organizationId?: string;
+  visibility?: string;
 }
 
 export interface PushInitResponse {
@@ -142,6 +144,8 @@ export interface PublishCompleteParams {
   shortDescription?: string;
   tags?: string;
   changelog?: string;
+  organizationId?: string;
+  visibility?: string;
 }
 
 /** Mirrors AuditFinding in skill-marketplace/src/lib/services/skill-audit-service.ts */

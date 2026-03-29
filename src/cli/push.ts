@@ -24,6 +24,8 @@ export const pushCommand = new Command("push")
   .option("--changelog <text>", "Version changelog")
   .option("-y, --yes", "Skip confirmation prompt")
   .option("-s, --server <url>", "Server URL override")
+  .option("--org <org>", "Push to an organization's private registry")
+  .option("--visibility <visibility>", "Skill visibility: public or private", "public")
   .addHelpText(
     "after",
     `
@@ -32,6 +34,7 @@ Examples:
   $ osk push ./my-skill                       # Push specific directory
   $ osk push . --tags "pdf,reader" -y         # With tags, skip confirm
   $ osk push . --changelog "Fixed edge case"  # With changelog
+  $ osk push . --org my-team --visibility private  # Push as org-private skill
 `
   )
   .action(
@@ -43,6 +46,8 @@ Examples:
         changelog?: string;
         yes?: boolean;
         server?: string;
+        org?: string;
+        visibility?: string;
       }
     ) => {
       // 1. Check auth (auto-refreshes access token if expired)
@@ -53,6 +58,27 @@ Examples:
       }
 
       const serverUrl = validateServerUrl(options.server || auth.serverUrl);
+
+      // 1b. Resolve org if --org provided
+      let organizationId: string | undefined;
+      const visibility = options.visibility === "private" ? "private" : "public";
+
+      if (options.org) {
+        const { createMarketplaceClient } = await import("../core/marketplace-client.js");
+        const client = createMarketplaceClient(serverUrl);
+        const orgs = await client.listOrgs(auth.accessToken);
+        const org = orgs.find((o) => o.slug === options.org || o.id === options.org);
+        if (!org) {
+          logger.error(`Organization "${options.org}" not found. Run 'osk org ls' to see your organizations.`);
+          process.exit(1);
+        }
+        organizationId = org.id;
+      }
+
+      if (visibility === "private" && !organizationId) {
+        // Private without org = personal private skill (author-only)
+        logger.dim("Publishing as private skill (only you can see it).");
+      }
 
       // 2. Resolve skill directory
       const skillDir = resolve(directory);
@@ -131,6 +157,8 @@ Examples:
           tags,
           pricingType: "free",
           changelog: options.changelog,
+          organizationId,
+          visibility,
         });
 
         if (initResult.unchanged) {
@@ -181,11 +209,15 @@ Examples:
           shortDescription: options.shortDesc,
           tags,
           changelog: options.changelog,
+          organizationId,
+          visibility,
         });
 
         completeSpinner.stop("Pushed");
         logger.newline();
-        logger.success(`${result.name}@${result.version} pushed to marketplace (draft)`);
+        const target = organizationId ? `org registry (${options.org})` : "marketplace";
+        const visLabel = visibility === "private" ? "private" : "draft";
+        logger.success(`${result.name}@${result.version} pushed to ${target} (${visLabel})`);
         logger.dim(`  ${serverUrl}/skills/${result.slug}`);
 
         // Show audit warnings on success
@@ -195,7 +227,11 @@ Examples:
         }
 
         logger.newline();
-        logger.dim("Run 'osk publish <slug>' to make it public.");
+        if (visibility === "private") {
+          logger.dim("This skill is private. Only org members with permission can install it.");
+        } else {
+          logger.dim("Run 'osk publish <slug>' to make it public.");
+        }
       } catch (err) {
         completeSpinner.stop();
         if (err instanceof MarketplaceApiError) {
