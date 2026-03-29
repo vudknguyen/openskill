@@ -121,8 +121,15 @@ orgCommand
     const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
     const spinner = createSpinner(`Inviting ${email}...`);
     try {
-      await client.inviteOrgMember(orgId, email, opts.role, auth.accessToken);
+      const result = await client.inviteOrgMember(orgId, email, opts.role, auth.accessToken);
       spinner.stop(`Invitation sent to ${email}`);
+
+      // Show invite URL so admin can share it manually (e.g., when email isn't configured)
+      const serverUrl = auth.serverUrl || "http://localhost:3000";
+      const inviteUrl = `${serverUrl}/org/invite/${result.token}`;
+      logger.newline();
+      logger.dim("  Share this link if the email doesn't arrive:");
+      logger.log(`  ${inviteUrl}`);
     } catch (err: unknown) {
       spinner.stop("Failed to send invite");
       logger.error(err instanceof Error ? err.message : String(err));
