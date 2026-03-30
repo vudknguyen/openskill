@@ -13,6 +13,7 @@ export const searchCommand = new Command("search")
   .option("-i, --install", "Search and install interactively")
   .option("--refresh", "Refresh repositories before searching")
   .option("-s, --server <url>", "Server URL override")
+  .option("--org <org>", "Search within an organization's skill registry")
   .addHelpText(
     "after",
     `
@@ -21,6 +22,7 @@ Examples:
   $ osk search pdf -i                    # Search and install
   $ osk search pdf --repo anthropic-official  # Search specific repo only
   $ osk search pdf --refresh             # Refresh repos first
+  $ osk search pdf --org my-team         # Search within org registry
 `
   )
   .action(async (query: string, options) => {
@@ -28,6 +30,45 @@ Examples:
       const spinner = createSpinner("Refreshing repositories...");
       await refreshAllRepos();
       spinner.stop("Repositories refreshed");
+    }
+
+    // Search within org registry
+    if (options.org) {
+      const { getValidAuth } = await import("../core/token-refresh.js");
+      const { createMarketplaceClient } = await import("../core/marketplace-client.js");
+      const auth = await getValidAuth();
+      if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exit(1); }
+
+      const client = createMarketplaceClient();
+      const orgs = await client.listOrgs(auth.accessToken);
+      const org = orgs.find((o) => o.slug === options.org || o.id === options.org);
+      if (!org) { logger.error(`Organization "${options.org}" not found.`); process.exit(1); }
+
+      const spinner = createSpinner(`Searching ${org.name}'s registry...`);
+      const result = await client.getOrgSkills(org.id, auth.accessToken);
+      const lowerQuery = query.toLowerCase();
+      const matches = result.skills.filter(
+        (s) =>
+          s.skillName.toLowerCase().includes(lowerQuery) ||
+          s.skillSlug.toLowerCase().includes(lowerQuery) ||
+          s.skillDescription.toLowerCase().includes(lowerQuery)
+      );
+      spinner.stop(`${matches.length} result(s) in ${org.name}`);
+
+      if (matches.length === 0) {
+        logger.dim("No matching skills found in org registry.");
+        return;
+      }
+
+      for (const s of matches) {
+        const auditBadge = s.skillAuditStatus === "pass" ? "✓" : s.skillAuditStatus === "fail" ? "✗" : "?";
+        logger.log(`  ${auditBadge} ${s.skillName} (${s.skillSlug})`);
+        logger.dim(`    ${s.skillDescription.slice(0, 80)}`);
+      }
+
+      logger.newline();
+      logger.dim(`Install with: osk install <slug> --org ${options.org}`);
+      return;
     }
 
     // Searching a specific repo skips marketplace
