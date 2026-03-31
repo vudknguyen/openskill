@@ -75,6 +75,14 @@ describe("MarketplaceClient", () => {
 
       expect(result).toEqual(errorBody);
     });
+
+    it("throws MarketplaceApiError on server 500 response", async () => {
+      mockFetch({ ok: false, status: 500, json: () => Promise.reject(new SyntaxError("Unexpected token <")) });
+      const client = new MarketplaceClient(SERVER);
+
+      await expect(client.pollDeviceToken("dc-123")).rejects.toThrow(MarketplaceApiError);
+      await expect(client.pollDeviceToken("dc-123")).rejects.toThrow("Server error (500)");
+    });
   });
 
   // --- fetchCurrentUser ----------------------------------------------------

@@ -8,6 +8,7 @@ import { getAgent } from "../agents/index.js";
 import type { InstallScope } from "../agents/types.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { trackInstall } from "./telemetry.js";
+import { calculateHash } from "./package.js";
 import {
   createMarketplaceClient,
   type MarketplaceClient,
@@ -36,31 +37,37 @@ async function downloadAndExtract(
   client: MarketplaceClient,
   downloadUrl: string,
   targetDir: string
-): Promise<void> {
+): Promise<Buffer> {
   const buffer = await client.downloadFromPresignedUrl(downloadUrl);
 
   // Extract to a temp dir first, then move to target
   const tempDir = join(tmpdir(), `osk-install-${Date.now()}`);
   mkdirSync(tempDir, { recursive: true });
 
-  const tempTarPath = join(tempDir, "skill.tar.gz");
-  writeFileSync(tempTarPath, buffer);
+  try {
+    const tempTarPath = join(tempDir, "skill.tar.gz");
+    writeFileSync(tempTarPath, buffer);
 
-  // Ensure target exists
-  mkdirSync(targetDir, { recursive: true });
+    // Ensure target exists
+    mkdirSync(targetDir, { recursive: true });
 
-  // Extract with path traversal protection
-  const resolvedTarget = resolve(targetDir);
-  await tar.extract({
-    file: tempTarPath,
-    cwd: targetDir,
-    filter: (path) => {
-      const full = resolve(targetDir, path);
-      const rel = relative(resolvedTarget, full);
-      // Reject paths that escape the target directory
-      return !rel.startsWith("..");
-    },
-  });
+    // Extract with path traversal protection
+    const resolvedTarget = resolve(targetDir);
+    await tar.extract({
+      file: tempTarPath,
+      cwd: targetDir,
+      filter: (path) => {
+        const full = resolve(targetDir, path);
+        const rel = relative(resolvedTarget, full);
+        // Reject paths that escape the target directory
+        return !rel.startsWith("..");
+      },
+    });
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+
+  return buffer;
 }
 
 /**
@@ -91,11 +98,31 @@ export async function installFromMarketplace(
     );
   }
 
+  // 1b. Check file size before downloading (default 100MB)
+  const MAX_DOWNLOAD_SIZE = 100 * 1024 * 1024;
+  if (metadata.fileSize && metadata.fileSize > MAX_DOWNLOAD_SIZE) {
+    const sizeMB = (metadata.fileSize / 1024 / 1024).toFixed(1);
+    const limitMB = (MAX_DOWNLOAD_SIZE / 1024 / 1024).toFixed(0);
+    throw new Error(
+      `Package too large (${sizeMB}MB). Maximum allowed: ${limitMB}MB.`
+    );
+  }
+
   // 2. Download, extract, and install (temp dir cleaned up in finally)
   const downloadSpinner = createSpinner("Downloading package...");
   const tempSkillDir = join(tmpdir(), `osk-marketplace-${slug}-${Date.now()}`);
   try {
-    await downloadAndExtract(client, metadata.downloadUrl, tempSkillDir);
+    const buffer = await downloadAndExtract(client, metadata.downloadUrl, tempSkillDir);
+
+    // 2b. Verify integrity
+    if (metadata.fileHash) {
+      const actualHash = calculateHash(buffer);
+      if (actualHash !== metadata.fileHash) {
+        throw new Error(
+          `Package integrity check failed: expected ${metadata.fileHash.slice(0, 16)}..., got ${actualHash.slice(0, 16)}...`
+        );
+      }
+    }
     downloadSpinner.stop("Downloaded");
 
     // 3. Load skill from extracted directory

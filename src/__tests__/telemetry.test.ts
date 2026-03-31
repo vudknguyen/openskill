@@ -521,6 +521,33 @@ describe("TelemetryClient", () => {
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
+    it("discards events and marks flushed when serverUrl is invalid", async () => {
+      mockLoadConfig.mockReturnValue({
+        serverUrl: "not-a-valid-url",
+        telemetryEnabled: true,
+        defaultAgent: "claude",
+        defaultScope: "project",
+        repos: [],
+        agents: {},
+        version: 3,
+      });
+
+      const client = new TelemetryClient();
+      client.trackInstall("my-skill");
+      mockWriteFileSync.mockClear();
+
+      await client.flush();
+
+      // Should NOT call fetch with an invalid URL
+      expect(global.fetch).not.toHaveBeenCalled();
+      // Should mark as flushed (clears queue)
+      expect(mockWriteFileSync).toHaveBeenCalledWith(
+        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining('"events":[]'),
+        expect.any(Object)
+      );
+    });
+
     it("flushAsync sends events in background", async () => {
       const client = new TelemetryClient();
       client.trackStart();

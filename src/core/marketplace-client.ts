@@ -274,6 +274,9 @@ export class MarketplaceClient {
     const res = await this.post("/api/auth/device/token", {
       device_code: deviceCode,
     });
+    if (!res.ok && res.status >= 500) {
+      throw new MarketplaceApiError(`Server error (${res.status})`, res.status);
+    }
     return (await res.json()) as DeviceTokenResponse | DeviceTokenErrorResponse;
   }
 

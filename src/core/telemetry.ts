@@ -4,6 +4,7 @@ import { platform, arch, homedir } from "os";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadConfig, getConfigDir, ensureConfigDir } from "./config.js";
+import { validateServerUrl } from "../utils/url.js";
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -124,7 +125,7 @@ export class TelemetryClient {
   /**
    * Check if telemetry is enabled.
    * Checks config setting first, then env variables as override.
-   * Disabled by default - user must opt-in via config.
+   * Disabled by default - user must opt-in via `osk config set telemetryEnabled true`.
    */
   private isEnabled(): boolean {
     // Environment variables can force opt-out
@@ -134,9 +135,9 @@ export class TelemetryClient {
       return false;
     }
 
-    // Check config setting (default is true/opt-in)
+    // Opt-in: telemetry is off unless explicitly enabled
     const config = loadConfig();
-    return config.telemetryEnabled !== false;
+    return config.telemetryEnabled === true;
   }
 
   /**
@@ -398,7 +399,14 @@ export class TelemetryClient {
 
     // Read server URL at flush time for config reactivity
     const config = loadConfig();
-    const serverUrl = config.serverUrl;
+    let serverUrl: string;
+    try {
+      serverUrl = validateServerUrl(config.serverUrl);
+    } catch {
+      // Invalid server URL — discard events silently
+      this.markFlushed();
+      return;
+    }
 
     try {
       const response = await fetch(`${serverUrl}/api/telemetry`, {

@@ -4,7 +4,7 @@ import { logger, createSpinner } from "../utils/logger.js";
 import { confirm } from "../utils/prompt.js";
 import { validateServerUrl } from "../utils/url.js";
 import {
-  MarketplaceClient,
+  createMarketplaceClient,
   MarketplaceApiError,
 } from "../core/marketplace-client.js";
 
@@ -53,7 +53,7 @@ Examples:
       // 3. PATCH /api/skills/[slug] with status: "published"
       const spinner = createSpinner("Publishing...");
       try {
-        const client = new MarketplaceClient(serverUrl);
+        const client = createMarketplaceClient(serverUrl);
         const result = await client.updateSkillStatus(
           auth.accessToken,
           slug,

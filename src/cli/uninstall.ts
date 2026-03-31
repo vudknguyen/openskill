@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { getAgent, getAllAgents, getAgentNames, InstallScope } from "../agents/index.js";
-import { removeSkillRecord } from "../core/manifest.js";
+import { getSkillRecord, removeSkillRecord } from "../core/manifest.js";
 import { getScopeLabel } from "../utils/fs.js";
 import { select, confirm } from "../utils/prompt.js";
 import { logger } from "../utils/logger.js";
@@ -74,10 +74,15 @@ Examples:
       }
 
       for (const agent of getAllAgents()) {
+        const record = getSkillRecord(skillName, agent.name, scope);
         const success = await agent.uninstallSkill(skillName, undefined, scope);
         if (success) {
           removeSkillRecord(skillName, agent.name, scope);
-          trackUninstall(skillName, { agent: agent.name, scope });
+          trackUninstall(skillName, {
+            agent: agent.name,
+            source: record?.source ?? "git",
+            scope,
+          });
           logger.success(`Uninstalled ${skillName} from ${agent.displayName}${scopeLabel}`);
         }
       }
@@ -138,11 +143,16 @@ Examples:
       }
     }
 
+    const record = getSkillRecord(skillName, agentName, scope);
     const success = await agent.uninstallSkill(skillName, undefined, scope);
 
     if (success) {
       removeSkillRecord(skillName, agentName, scope);
-      trackUninstall(skillName, { agent: agentName, scope });
+      trackUninstall(skillName, {
+        agent: agentName,
+        source: record?.source ?? "git",
+        scope,
+      });
       logger.success(`Uninstalled ${skillName} from ${agent.displayName}${scopeLabel}`);
     }
   });

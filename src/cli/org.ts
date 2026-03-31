@@ -198,7 +198,7 @@ orgCommand
 orgCommand
   .command("rm-skill <org> <skill-slug>")
   .description("Remove a skill from the organization's registry")
-  .action(async (orgSlugOrId: string, _skillSlug: string) => {
+  .action(async (orgSlugOrId: string, skillSlug: string) => {
     const auth = await getValidAuth();
     if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
     const client = createMarketplaceClient();
@@ -207,19 +207,171 @@ orgCommand
 
     // First get the org skills to find the skill ID
     const result = await client.getOrgSkills(orgId, auth.accessToken);
-    const match = result.skills.find((s) => s.skillSlug === _skillSlug);
+    const match = result.skills.find((s) => s.skillSlug === skillSlug);
     if (!match) {
-      logger.error(`Skill "${_skillSlug}" is not in this organization's registry`);
+      logger.error(`Skill "${skillSlug}" is not in this organization's registry`);
       process.exitCode = 1;
       return;
     }
 
-    const spinner = createSpinner(`Removing "${_skillSlug}" from org registry...`);
+    const spinner = createSpinner(`Removing "${skillSlug}" from org registry...`);
     try {
       await client.removeSkillFromOrg(orgId, match.skillId, auth.accessToken);
-      spinner.stop(`Skill "${_skillSlug}" removed from organization registry`);
+      spinner.stop(`Skill "${skillSlug}" removed from organization registry`);
     } catch (err: unknown) {
       spinner.stop("Failed to remove skill");
+      logger.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+    }
+  });
+
+// Subcommand: set-default
+orgCommand
+  .command("set-default <org>")
+  .description("Set default organization (used when --org is omitted)")
+  .action(async (orgSlugOrId: string) => {
+    const auth = await getValidAuth();
+    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    const client = createMarketplaceClient();
+
+    // Verify org exists and user is a member
+    const orgs = await client.listOrgs(auth.accessToken);
+    const match = orgs.find((o) => o.slug === orgSlugOrId || o.id === orgSlugOrId);
+    if (!match) {
+      logger.error(`Organization "${orgSlugOrId}" not found. Run 'osk org ls' to see your organizations.`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const { loadConfig, saveConfig } = await import("../core/config.js");
+    const config = loadConfig();
+    config.defaultOrg = match.slug;
+    saveConfig(config);
+
+    logger.success(`Default organization set to "${match.slug}"`);
+    logger.dim("Commands like 'osk install', 'osk push' will use this org when --org is omitted.");
+  });
+
+// Subcommand: policy
+orgCommand
+  .command("policy <org> <policy>")
+  .description("Set install policy: open, allowlist, or blocklist")
+  .addHelpText(
+    "after",
+    `
+Policies:
+  open       Members can install any skill (default)
+  allowlist  Members can only install skills in the org registry
+  blocklist  Members can install anything except blocked skills
+
+Examples:
+  $ osk org policy my-team allowlist   # Restrict to approved skills only
+  $ osk org policy my-team open        # Allow all skills
+`
+  )
+  .action(async (orgSlugOrId: string, policy: string) => {
+    if (!["open", "allowlist", "blocklist"].includes(policy)) {
+      logger.error(`Invalid policy: ${policy}. Must be: open, allowlist, or blocklist`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const auth = await getValidAuth();
+    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    const client = createMarketplaceClient();
+
+    const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
+    const spinner = createSpinner(`Setting install policy to "${policy}"...`);
+    try {
+      const res = await fetch(`${auth.serverUrl}/api/orgs/${orgId}/settings`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({ installPolicy: policy }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        spinner.stop();
+        logger.error((body as { error?: string }).error || `Failed (${res.status})`);
+        process.exitCode = 1;
+        return;
+      }
+      spinner.stop(`Install policy set to "${policy}"`);
+    } catch (err: unknown) {
+      spinner.stop("Failed to update policy");
+      logger.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+    }
+  });
+
+// Subcommand: block
+orgCommand
+  .command("block <org> <skill-slug>")
+  .description("Block a skill from being installed by org members")
+  .option("-r, --reason <reason>", "Reason for blocking")
+  .action(async (orgSlugOrId: string, skillSlug: string, opts: { reason?: string }) => {
+    const auth = await getValidAuth();
+    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    const client = createMarketplaceClient();
+
+    const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
+    const spinner = createSpinner(`Blocking "${skillSlug}"...`);
+    try {
+      const res = await fetch(`${auth.serverUrl}/api/orgs/${orgId}/blocked-skills`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({ skillSlug, reason: opts.reason }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        spinner.stop();
+        logger.error((body as { error?: string }).error || `Failed (${res.status})`);
+        process.exitCode = 1;
+        return;
+      }
+      spinner.stop(`Blocked "${skillSlug}"`);
+    } catch (err: unknown) {
+      spinner.stop("Failed to block skill");
+      logger.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+    }
+  });
+
+// Subcommand: unblock
+orgCommand
+  .command("unblock <org> <skill-slug>")
+  .description("Unblock a previously blocked skill")
+  .action(async (orgSlugOrId: string, skillSlug: string) => {
+    const auth = await getValidAuth();
+    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    const client = createMarketplaceClient();
+
+    const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
+    const spinner = createSpinner(`Unblocking "${skillSlug}"...`);
+    try {
+      const res = await fetch(`${auth.serverUrl}/api/orgs/${orgId}/blocked-skills`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({ skillSlug }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        spinner.stop();
+        logger.error((body as { error?: string }).error || `Failed (${res.status})`);
+        process.exitCode = 1;
+        return;
+      }
+      spinner.stop(`Unblocked "${skillSlug}"`);
+    } catch (err: unknown) {
+      spinner.stop("Failed to unblock skill");
       logger.error(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
     }

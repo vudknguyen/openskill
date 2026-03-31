@@ -5,11 +5,13 @@ import { logger, createSpinner } from "../utils/logger.js";
 import { loadAuth, saveAuth, type AuthData } from "../core/auth.js";
 import { loadConfig } from "../core/config.js";
 import {
+  createMarketplaceClient,
   MarketplaceClient,
   type DeviceCodeResponse,
   type DeviceTokenResponse,
   type DeviceTokenErrorResponse,
 } from "../core/marketplace-client.js";
+import { validateServerUrl } from "../utils/url.js";
 
 function openBrowser(url: string): void {
   // Validate URL format to prevent command injection
@@ -80,7 +82,13 @@ Examples:
   $ osk login --no-browser`
   )
   .action(async (options: { server: string; browser: boolean }) => {
-    const serverUrl = options.server.replace(/\/$/, "");
+    let serverUrl: string;
+    try {
+      serverUrl = validateServerUrl(options.server);
+    } catch {
+      logger.error(`Invalid server URL: ${options.server}`);
+      return;
+    }
 
     // Check existing auth
     const existing = loadAuth();
@@ -92,7 +100,7 @@ Examples:
       return;
     }
 
-    const client = new MarketplaceClient(serverUrl);
+    const client = createMarketplaceClient(serverUrl);
 
     // Step 1: Request device code
     let deviceData: DeviceCodeResponse;

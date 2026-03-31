@@ -65,6 +65,11 @@ vi.mock("tar", () => ({
   extract: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Mock package (calculateHash)
+vi.mock("../core/package.js", () => ({
+  calculateHash: vi.fn().mockReturnValue("mock-hash-value"),
+}));
+
 // Mock telemetry
 vi.mock("../core/telemetry.js", () => ({
   trackInstall: vi.fn(),
@@ -134,11 +139,11 @@ describe("fetchMarketplaceSkill", () => {
 });
 
 describe("installFromMarketplace", () => {
-  function setupMocks() {
+  function setupMocks(overrides?: { fileHash?: string | null }) {
     const metadata = {
       downloadUrl: "https://cdn.example.com/skill.tar.gz",
       version: "1.0.0",
-      fileHash: "abc123hash",
+      fileHash: overrides?.fileHash ?? null,
       fileSize: 2048,
     };
 
@@ -188,7 +193,7 @@ describe("installFromMarketplace", () => {
         agent: "claude",
         repoOwner: "marketplace",
         repoName: "my-skill",
-        commitHash: "abc123hash",
+        commitHash: "1.0.0",
         source: "marketplace",
         marketplaceSlug: "my-skill",
         marketplaceVersion: "1.0.0",
@@ -345,5 +350,22 @@ describe("installFromMarketplace", () => {
       expect.stringContaining("/mock/tmp/osk-marketplace-my-skill-"),
       { recursive: true, force: true },
     );
+  });
+
+  it("rejects download when hash does not match metadata", async () => {
+    setupMocks({ fileHash: "expected-hash-that-wont-match" });
+
+    await expect(installFromMarketplace("my-skill", {})).rejects.toThrow(
+      "Package integrity check failed",
+    );
+  });
+
+  it("skips hash verification when fileHash is null", async () => {
+    setupMocks({ fileHash: null });
+
+    await installFromMarketplace("my-skill", {});
+
+    // Should succeed without throwing
+    expect(mockGetSkillDownload).toHaveBeenCalled();
   });
 });

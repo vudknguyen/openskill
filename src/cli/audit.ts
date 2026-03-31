@@ -7,7 +7,7 @@ import { validateServerUrl } from "../utils/url.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { displayFindings } from "../utils/audit-display.js";
 import {
-  MarketplaceClient,
+  createMarketplaceClient,
   MarketplaceApiError,
 } from "../core/marketplace-client.js";
 
@@ -52,7 +52,7 @@ Examples:
       serverUrl = validateServerUrl(raw);
     }
 
-    const client = new MarketplaceClient(serverUrl);
+    const client = createMarketplaceClient(serverUrl);
 
     // 3. Run audit
     const spinner = createSpinner("Running security audit...");

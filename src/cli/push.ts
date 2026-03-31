@@ -9,7 +9,7 @@ import { confirm } from "../utils/prompt.js";
 import { validateServerUrl } from "../utils/url.js";
 import { displayFindings } from "../utils/audit-display.js";
 import {
-  MarketplaceClient,
+  createMarketplaceClient,
   MarketplaceApiError,
   type PushInitResponse,
   type PushCompleteResponse,
@@ -59,17 +59,18 @@ Examples:
 
       const serverUrl = validateServerUrl(options.server || auth.serverUrl);
 
-      // 1b. Resolve org if --org provided
+      // 1b. Resolve org: explicit --org flag or defaultOrg from config
       let organizationId: string | undefined;
       const visibility = options.visibility === "private" ? "private" : "public";
 
-      if (options.org) {
+      const orgSlug = options.org || (await import("../core/config.js")).loadConfig().defaultOrg;
+      if (orgSlug) {
         const { createMarketplaceClient } = await import("../core/marketplace-client.js");
         const client = createMarketplaceClient(serverUrl);
         const orgs = await client.listOrgs(auth.accessToken);
-        const org = orgs.find((o) => o.slug === options.org || o.id === options.org);
+        const org = orgs.find((o) => o.slug === orgSlug || o.id === orgSlug);
         if (!org) {
-          logger.error(`Organization "${options.org}" not found. Run 'osk org ls' to see your organizations.`);
+          logger.error(`Organization "${orgSlug}" not found. Run 'osk org ls' to see your organizations.`);
           process.exit(1);
         }
         organizationId = org.id;
@@ -143,7 +144,7 @@ Examples:
         }
       }
 
-      const client = new MarketplaceClient(serverUrl);
+      const client = createMarketplaceClient(serverUrl);
 
       // 8. POST /api/skills/publish/init
       const initSpinner = createSpinner("Initializing...");
@@ -199,10 +200,16 @@ Examples:
         process.exit(1);
       }
 
-      // 10. POST /api/skills/publish/complete
+      // 10. POST /api/skills/publish/complete — re-auth in case token expired during upload
+      const freshAuth = await getValidAuth();
+      if (!freshAuth) {
+        logger.error("Session expired during upload. Run 'osk login' and try again.");
+        process.exit(1);
+      }
+
       const completeSpinner = createSpinner("Finalizing...");
       try {
-        const result = await client.completePublish(auth.accessToken, {
+        const result = await client.completePublish(freshAuth.accessToken, {
           uploadKey: initResult.uploadKey!,
           slug,
           fileHash,
