@@ -32,8 +32,9 @@ Examples:
       spinner.stop("Repositories refreshed");
     }
 
-    // Search within org registry
-    if (options.org) {
+    // Search within org registry (explicit --org or defaultOrg)
+    const orgSlug = options.org || loadConfig().defaultOrg;
+    if (orgSlug) {
       const { getValidAuth } = await import("../core/token-refresh.js");
       const { createMarketplaceClient } = await import("../core/marketplace-client.js");
       const auth = await getValidAuth();
@@ -41,8 +42,8 @@ Examples:
 
       const client = createMarketplaceClient();
       const orgs = await client.listOrgs(auth.accessToken);
-      const org = orgs.find((o) => o.slug === options.org || o.id === options.org);
-      if (!org) { logger.error(`Organization "${options.org}" not found.`); process.exit(1); }
+      const org = orgs.find((o) => o.slug === orgSlug || o.id === orgSlug);
+      if (!org) { logger.error(`Organization "${orgSlug}" not found.`); process.exit(1); }
 
       const spinner = createSpinner(`Searching ${org.name}'s registry...`);
       const result = await client.getOrgSkills(org.id, auth.accessToken);

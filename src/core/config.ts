@@ -26,6 +26,7 @@ export interface Config {
   version: number;
   defaultAgent: string;
   defaultScope: InstallScope;
+  defaultOrg?: string;
   serverUrl: string;
   telemetryEnabled: boolean;
   repos: RepoConfig[];

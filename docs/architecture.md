@@ -179,13 +179,14 @@ User runs: osk repo add <url>
 
 ## Dependencies
 
-Minimal by design - only 3 runtime dependencies:
+Minimal by design - only 4 runtime dependencies:
 
-| Dependency          | Purpose             | Location                |
-| ------------------- | ------------------- | ----------------------- |
-| `commander`         | CLI framework       | `src/cli/*.ts`          |
-| `gray-matter`       | YAML frontmatter    | `src/utils/markdown.ts` |
-| `@inquirer/prompts` | Interactive prompts | `src/utils/prompt.ts`   |
+| Dependency          | Purpose                    | Location                |
+| ------------------- | -------------------------- | ----------------------- |
+| `commander`         | CLI framework              | `src/cli/*.ts`          |
+| `gray-matter`       | YAML frontmatter           | `src/utils/markdown.ts` |
+| `@inquirer/prompts` | Interactive prompts        | `src/utils/prompt.ts`   |
+| `tar`               | Marketplace package format | `src/core/package.ts`   |
 
 All other functionality uses Node.js built-ins.
 

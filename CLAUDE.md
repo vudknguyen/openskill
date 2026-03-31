@@ -56,11 +56,12 @@ src/
 
 ## Dependencies
 
-Minimal by design - 3 runtime dependencies:
+Minimal by design - 4 runtime dependencies:
 
 - `commander` - CLI framework
 - `gray-matter` - YAML frontmatter parsing
 - `@inquirer/prompts` - Interactive prompts (select, checkbox, confirm, input, search)
+- `tar` - Tar archive creation/extraction for marketplace packages
 
 All other functionality uses Node.js built-ins.
 

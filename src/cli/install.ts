@@ -76,10 +76,13 @@ Examples:
 
       const scope: InstallScope = options.global ? "global" : "project";
 
+      // Resolve org: explicit --org flag or defaultOrg from config
+      const orgSlug = options.org || loadConfig().defaultOrg;
+
       // Org registry install path
-      if (options.org) {
+      if (orgSlug) {
         try {
-          await installFromOrgRegistry(source, options.org, {
+          await installFromOrgRegistry(source, orgSlug, {
             agent: options.target,
             version: options.version,
             scope,
