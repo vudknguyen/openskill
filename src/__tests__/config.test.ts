@@ -71,7 +71,7 @@ describe("loadConfig", () => {
 
     expect(config.defaultAgent).toBe("claude");
     expect(config.defaultScope).toBe("project");
-    expect(config.serverUrl).toBe("http://localhost:3000");
+    expect(config.serverUrl).toBe("https://www.openskill.sh");
     expect(config.repos.length).toBeGreaterThan(0);
     expect(mockedWriteFileSync).toHaveBeenCalled();
   });
@@ -423,7 +423,7 @@ describe("serverUrl config", () => {
 
     const config = loadConfig();
 
-    expect(config.serverUrl).toBe("http://localhost:3000");
+    expect(config.serverUrl).toBe("https://www.openskill.sh");
   });
 
   it("preserves custom serverUrl from config file", () => {
@@ -465,7 +465,7 @@ describe("serverUrl config", () => {
 
     const config = loadConfig();
 
-    expect(config.serverUrl).toBe("http://localhost:3000");
+    expect(config.serverUrl).toBe("https://www.openskill.sh");
   });
 
   it("saves serverUrl via saveConfig", () => {
@@ -511,7 +511,7 @@ describe("saveConfig", () => {
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
       expect.stringContaining("config.json"),
       expect.stringContaining('"defaultAgent": "claude"'),
-      "utf-8"
+      { encoding: "utf-8", mode: 0o600 }
     );
   });
 
