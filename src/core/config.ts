@@ -37,8 +37,8 @@ const DEFAULT_CONFIG: Config = {
   version: CONFIG_VERSION,
   defaultAgent: "claude",
   defaultScope: "project",
-  serverUrl: "http://localhost:3000",
-  telemetryEnabled: true,
+  serverUrl: "https://www.openskill.sh",
+  telemetryEnabled: false,
   repos: [
     { name: "anthropic-official", url: "https://github.com/anthropics/skills" },
     { name: "openai-official", url: "https://github.com/openai/skills" },
@@ -259,7 +259,7 @@ function migrateConfig(config: Config, _rawConfig: Record<string, unknown>): voi
 export function saveConfig(config: Config): void {
   ensureConfigDir();
   const configPath = getConfigPath();
-  writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+  writeFileSync(configPath, JSON.stringify(config, null, 2), { encoding: "utf-8", mode: 0o600 });
 }
 
 export function addRepo(name: string, url: string): void {
