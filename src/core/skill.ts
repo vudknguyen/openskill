@@ -42,8 +42,12 @@ export function loadSkillInfo(skillDir: string, basePath?: string): SkillInfo | 
   const skill = loadSkillFromDir(skillDir);
   if (!skill) return null;
 
-  // Compute relative path from base, or use directory name as fallback
-  const relativePath = basePath ? relative(basePath, skillDir) : basename(skillDir);
+  // Compute relative path from base, or use directory name as fallback.
+  // Always use forward slashes for cross-platform consistency (relativePath
+  // is user-facing output, not a real filesystem path).
+  const relativePath = (basePath ? relative(basePath, skillDir) : basename(skillDir))
+    .split(/[\\/]/)
+    .join("/");
 
   return {
     name: skill.frontmatter.name,

@@ -330,7 +330,7 @@ describe("installFromMarketplace", () => {
     await expect(installFromMarketplace("my-skill", {})).rejects.toThrow();
 
     expect(mockRmSync).toHaveBeenCalledWith(
-      expect.stringContaining("/mock/tmp/osk-marketplace-my-skill-"),
+      expect.stringContaining("osk-marketplace-my-skill-"),
       { recursive: true, force: true }
     );
   });
@@ -341,7 +341,7 @@ describe("installFromMarketplace", () => {
     await installFromMarketplace("my-skill", {});
 
     expect(mockRmSync).toHaveBeenCalledWith(
-      expect.stringContaining("/mock/tmp/osk-marketplace-my-skill-"),
+      expect.stringContaining("osk-marketplace-my-skill-"),
       { recursive: true, force: true }
     );
   });

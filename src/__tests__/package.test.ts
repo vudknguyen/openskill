@@ -50,7 +50,7 @@ describe("packageSkill", () => {
     const result = await packageSkill("/skill-dir");
 
     expect(result).toEqual(tarContent);
-    expect(mockMkdirSync).toHaveBeenCalledWith(expect.stringContaining("/mock/tmp/osk-pkg-"), {
+    expect(mockMkdirSync).toHaveBeenCalledWith(expect.stringContaining("osk-pkg-"), {
       recursive: true,
     });
     expect(mockTarCreate).toHaveBeenCalledOnce();
