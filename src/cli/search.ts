@@ -38,12 +38,18 @@ Examples:
       const { getValidAuth } = await import("../core/token-refresh.js");
       const { createMarketplaceClient } = await import("../core/marketplace-client.js");
       const auth = await getValidAuth();
-      if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exit(1); }
+      if (!auth) {
+        logger.error("Not logged in. Run 'osk login' first.");
+        process.exit(1);
+      }
 
       const client = createMarketplaceClient();
       const orgs = await client.listOrgs(auth.accessToken);
       const org = orgs.find((o) => o.slug === orgSlug || o.id === orgSlug);
-      if (!org) { logger.error(`Organization "${orgSlug}" not found.`); process.exit(1); }
+      if (!org) {
+        logger.error(`Organization "${orgSlug}" not found.`);
+        process.exit(1);
+      }
 
       const spinner = createSpinner(`Searching ${org.name}'s registry...`);
       const result = await client.getOrgSkills(org.id, auth.accessToken);
@@ -62,7 +68,8 @@ Examples:
       }
 
       for (const s of matches) {
-        const auditBadge = s.skillAuditStatus === "pass" ? "✓" : s.skillAuditStatus === "fail" ? "✗" : "?";
+        const auditBadge =
+          s.skillAuditStatus === "pass" ? "✓" : s.skillAuditStatus === "fail" ? "✗" : "?";
         logger.log(`  ${auditBadge} ${s.skillName} (${s.skillSlug})`);
         logger.dim(`    ${s.skillDescription.slice(0, 80)}`);
       }
@@ -149,7 +156,9 @@ Examples:
           skill.authorName && `by ${skill.authorName}`,
           skill.tags && `[${skill.tags}]`,
           `osk install ${skill.slug} --marketplace`,
-        ].filter(Boolean).join("  ·  ");
+        ]
+          .filter(Boolean)
+          .join("  ·  ");
         logger.dim(`    ${meta}`);
       }
       sectionsPrinted++;
@@ -165,9 +174,14 @@ Examples:
         const meta = [
           formatAuditBadge(skill.auditStatus),
           skill.repoFullName,
-          skill.stars !== null && skill.stars !== undefined && skill.stars > 0 && `★ ${skill.stars}`,
+          skill.stars !== null &&
+            skill.stars !== undefined &&
+            skill.stars > 0 &&
+            `★ ${skill.stars}`,
           `osk install ${skill.repoFullName}`,
-        ].filter(Boolean).join("  ·  ");
+        ]
+          .filter(Boolean)
+          .join("  ·  ");
         logger.dim(`    ${meta}`);
       }
       sectionsPrinted++;
@@ -200,10 +214,14 @@ Examples:
 
 function formatAuditBadge(status: "pass" | "warning" | "fail" | "unscanned" | null): string | null {
   switch (status) {
-    case "pass": return "✔ audited";
-    case "warning": return "⚠ audit warnings";
-    case "fail": return "✖ audit failed";
-    default: return null;
+    case "pass":
+      return "✔ audited";
+    case "warning":
+      return "⚠ audit warnings";
+    case "fail":
+      return "✖ audit failed";
+    default:
+      return null;
   }
 }
 

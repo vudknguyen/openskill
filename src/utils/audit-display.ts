@@ -3,14 +3,17 @@ import type { AuditFinding } from "../core/marketplace-client.js";
 
 /** Strip ANSI escape sequences and control characters from server-provided strings. */
 export function sanitize(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/[\x00-\x08\x0B-\x1F\x7F]|\x1b[[\]PX^_][^\x07\x1b]*[\x07\x1b\\]?|\x1b[^[\]PX^_\x1b]/g, "");
+  return str.replace(
+    // eslint-disable-next-line no-control-regex
+    /[\x00-\x08\x0B-\x1F\x7F]|\x1b[[\]PX^_][^\x07\x1b]*[\x07\x1b\\]?|\x1b[^[\]PX^_\x1b]/g,
+    ""
+  );
 }
 
 export const severityConfig: Record<string, { icon: string; color: string }> = {
   critical: { icon: "✖", color: "\x1b[31m" },
-  warning:  { icon: "⚠", color: "\x1b[33m" },
-  info:     { icon: "ℹ", color: "\x1b[34m" },
+  warning: { icon: "⚠", color: "\x1b[33m" },
+  info: { icon: "ℹ", color: "\x1b[34m" },
 };
 
 export function displayFindings(findings: AuditFinding[], header?: string): void {
@@ -21,7 +24,7 @@ export function displayFindings(findings: AuditFinding[], header?: string): void
   // Group by severity: critical → warning → info
   const order = ["critical", "warning", "info"] as const;
   const sorted = [...findings].sort(
-    (a, b) => order.indexOf(a.severity) - order.indexOf(b.severity),
+    (a, b) => order.indexOf(a.severity) - order.indexOf(b.severity)
   );
 
   const MAX_DISPLAY = 20;

@@ -10,7 +10,7 @@ export class MarketplaceApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly body?: unknown,
+    public readonly body?: unknown
   ) {
     super(message);
   }
@@ -269,7 +269,7 @@ export class MarketplaceClient {
   }
 
   async pollDeviceToken(
-    deviceCode: string,
+    deviceCode: string
   ): Promise<DeviceTokenResponse | DeviceTokenErrorResponse> {
     const res = await this.post("/api/auth/device/token", {
       device_code: deviceCode,
@@ -280,15 +280,10 @@ export class MarketplaceClient {
     return (await res.json()) as DeviceTokenResponse | DeviceTokenErrorResponse;
   }
 
-  async fetchCurrentUser(
-    token: string,
-  ): Promise<{ id: string; name: string; email: string }> {
+  async fetchCurrentUser(token: string): Promise<{ id: string; name: string; email: string }> {
     const res = await this.get("/api/auth/me", token);
     if (!res.ok) {
-      throw new MarketplaceApiError(
-        `Failed to fetch user (${res.status})`,
-        res.status,
-      );
+      throw new MarketplaceApiError(`Failed to fetch user (${res.status})`, res.status);
     }
     const body = (await res.json()) as { user: { id: string; name: string; email: string } };
     return body.user;
@@ -299,10 +294,7 @@ export class MarketplaceClient {
       refresh_token: refreshToken,
     });
     if (!res.ok) {
-      throw new MarketplaceApiError(
-        `Refresh failed (${res.status})`,
-        res.status,
-      );
+      throw new MarketplaceApiError(`Refresh failed (${res.status})`, res.status);
     }
     return (await res.json()) as RefreshResponse;
   }
@@ -317,27 +309,21 @@ export class MarketplaceClient {
 
   // --- Skills --------------------------------------------------------------
 
-  async searchSkills(
-    query: string,
-    limit?: number,
-  ): Promise<MarketplaceSearchResponse> {
+  async searchSkills(query: string, limit?: number): Promise<MarketplaceSearchResponse> {
     const params = new URLSearchParams({
       q: query,
       limit: String(limit ?? 20),
     });
     const res = await this.get(`/api/skills?${params}`);
     if (!res.ok) {
-      throw new MarketplaceApiError(
-        `Marketplace search failed (${res.status})`,
-        res.status,
-      );
+      throw new MarketplaceApiError(`Marketplace search failed (${res.status})`, res.status);
     }
     return (await res.json()) as MarketplaceSearchResponse;
   }
 
   async discoverSkills(
     query: string,
-    options?: { limit?: number; source?: string },
+    options?: { limit?: number; source?: string }
   ): Promise<DiscoverResponse> {
     const params = new URLSearchParams({
       q: query,
@@ -346,29 +332,21 @@ export class MarketplaceClient {
     if (options?.source) params.set("source", options.source);
     const res = await this.get(`/api/skills/discover?${params}`);
     if (!res.ok) {
-      throw new MarketplaceApiError(
-        `Discovery failed (${res.status})`,
-        res.status,
-      );
+      throw new MarketplaceApiError(`Discovery failed (${res.status})`, res.status);
     }
     return (await res.json()) as DiscoverResponse;
   }
 
-  async getSkillDownload(
-    slug: string,
-    version?: string,
-  ): Promise<DownloadMetadata> {
+  async getSkillDownload(slug: string, version?: string): Promise<DownloadMetadata> {
     const path = skillApiPath(slug, "download");
-    const url = version
-      ? `${path}?version=${encodeURIComponent(version)}`
-      : path;
+    const url = version ? `${path}?version=${encodeURIComponent(version)}` : path;
     const res = await this.get(url);
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       throw new MarketplaceApiError(
         (body.error as string) || `Server returned ${res.status}`,
         res.status,
-        body,
+        body
       );
     }
     return (await res.json()) as DownloadMetadata;
@@ -377,10 +355,7 @@ export class MarketplaceClient {
   async getSkillVersions(slug: string): Promise<VersionsResponse> {
     const res = await this.get(skillApiPath(slug, "versions"));
     if (!res.ok) {
-      throw new MarketplaceApiError(
-        `Failed to fetch versions (${res.status})`,
-        res.status,
-      );
+      throw new MarketplaceApiError(`Failed to fetch versions (${res.status})`, res.status);
     }
     return (await res.json()) as VersionsResponse;
   }
@@ -388,16 +363,12 @@ export class MarketplaceClient {
   async updateSkillStatus(
     token: string,
     slug: string,
-    status: string,
+    status: string
   ): Promise<StatusUpdateResponse> {
     const res = await this.patch(skillApiPath(slug), { status }, token);
     const body = (await res.json()) as StatusUpdateResponse;
     if (!res.ok) {
-      throw new MarketplaceApiError(
-        body.error || `Server error (${res.status})`,
-        res.status,
-        body,
-      );
+      throw new MarketplaceApiError(body.error || `Server error (${res.status})`, res.status, body);
     }
     return body;
   }
@@ -411,7 +382,7 @@ export class MarketplaceClient {
       throw new MarketplaceApiError(
         (body.error as string) || `Audit failed (${res.status})`,
         res.status,
-        body,
+        body
       );
     }
     return (await res.json()) as AuditSkillResponse;
@@ -419,34 +390,23 @@ export class MarketplaceClient {
 
   // --- Publish -------------------------------------------------------------
 
-  async initPublish(
-    token: string,
-    params: PublishInitParams,
-  ): Promise<PushInitResponse> {
+  async initPublish(token: string, params: PublishInitParams): Promise<PushInitResponse> {
     const res = await this.post("/api/skills/publish/init", params, token);
     const body = (await res.json()) as PushInitResponse;
     if (!res.ok) {
-      throw new MarketplaceApiError(
-        body.error || `Server error (${res.status})`,
-        res.status,
-        body,
-      );
+      throw new MarketplaceApiError(body.error || `Server error (${res.status})`, res.status, body);
     }
     return body;
   }
 
   async completePublish(
     token: string,
-    params: PublishCompleteParams,
+    params: PublishCompleteParams
   ): Promise<PushCompleteResponse> {
     const res = await this.post("/api/skills/publish/complete", params, token);
     const body = (await res.json()) as PushCompleteResponse;
     if (!res.ok) {
-      throw new MarketplaceApiError(
-        body.error || `Server error (${res.status})`,
-        res.status,
-        body,
-      );
+      throw new MarketplaceApiError(body.error || `Server error (${res.status})`, res.status, body);
     }
     return body;
   }
@@ -484,11 +444,18 @@ export class MarketplaceClient {
     return (await res.json()) as OrgSummary[];
   }
 
-  async createOrg(data: { name: string; slug: string; description?: string }, token: string): Promise<{ id: string; slug: string }> {
+  async createOrg(
+    data: { name: string; slug: string; description?: string },
+    token: string
+  ): Promise<{ id: string; slug: string }> {
     const res = await this.post("/api/orgs", data, token);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new MarketplaceApiError((body as { error?: string }).error || `Failed (${res.status})`, res.status, body);
+      throw new MarketplaceApiError(
+        (body as { error?: string }).error || `Failed (${res.status})`,
+        res.status,
+        body
+      );
     }
     return (await res.json()) as { id: string; slug: string };
   }
@@ -499,11 +466,20 @@ export class MarketplaceClient {
     return (await res.json()) as OrgMemberInfo[];
   }
 
-  async inviteOrgMember(orgId: string, email: string, role: string, token: string): Promise<{ id: string; token: string }> {
+  async inviteOrgMember(
+    orgId: string,
+    email: string,
+    role: string,
+    token: string
+  ): Promise<{ id: string; token: string }> {
     const res = await this.post(`/api/orgs/${orgId}/invites`, { email, role }, token);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new MarketplaceApiError((body as { error?: string }).error || `Failed (${res.status})`, res.status, body);
+      throw new MarketplaceApiError(
+        (body as { error?: string }).error || `Failed (${res.status})`,
+        res.status,
+        body
+      );
     }
     return (await res.json()) as { id: string; token: string };
   }
@@ -512,13 +488,18 @@ export class MarketplaceClient {
     const res = await this.del(`/api/orgs/${orgId}/members/${userId}`, token);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new MarketplaceApiError((body as { error?: string }).error || `Failed (${res.status})`, res.status, body);
+      throw new MarketplaceApiError(
+        (body as { error?: string }).error || `Failed (${res.status})`,
+        res.status,
+        body
+      );
     }
   }
 
   async getOrgSkills(orgId: string, token: string): Promise<OrgSkillsResponse> {
     const res = await this.get(`/api/orgs/${orgId}/skills`, token);
-    if (!res.ok) throw new MarketplaceApiError(`Failed to get org skills (${res.status})`, res.status);
+    if (!res.ok)
+      throw new MarketplaceApiError(`Failed to get org skills (${res.status})`, res.status);
     return (await res.json()) as OrgSkillsResponse;
   }
 
@@ -526,13 +507,18 @@ export class MarketplaceClient {
     const res = await this.post(`/api/orgs/${orgId}/skills`, { skillSlug }, token);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new MarketplaceApiError((body as { error?: string }).error || `Failed (${res.status})`, res.status, body);
+      throw new MarketplaceApiError(
+        (body as { error?: string }).error || `Failed (${res.status})`,
+        res.status,
+        body
+      );
     }
   }
 
   async removeSkillFromOrg(orgId: string, skillId: number, token: string): Promise<void> {
     const res = await this.del(`/api/orgs/${orgId}/skills/${skillId}`, token);
-    if (!res.ok) throw new MarketplaceApiError(`Failed to remove skill (${res.status})`, res.status);
+    if (!res.ok)
+      throw new MarketplaceApiError(`Failed to remove skill (${res.status})`, res.status);
   }
 }
 
@@ -540,9 +526,7 @@ export class MarketplaceClient {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createMarketplaceClient(
-  serverOverride?: string,
-): MarketplaceClient {
+export function createMarketplaceClient(serverOverride?: string): MarketplaceClient {
   const auth = loadAuth();
   const raw = serverOverride || auth?.serverUrl || loadConfig().serverUrl;
   return new MarketplaceClient(validateServerUrl(raw));

@@ -147,9 +147,7 @@ export function loadConfig(): Config {
 
   // Validate serverUrl
   const serverUrl =
-    typeof rawConfig.serverUrl === "string"
-      ? rawConfig.serverUrl
-      : DEFAULT_CONFIG.serverUrl;
+    typeof rawConfig.serverUrl === "string" ? rawConfig.serverUrl : DEFAULT_CONFIG.serverUrl;
 
   // Validate telemetryEnabled
   const telemetryEnabled =

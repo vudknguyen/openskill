@@ -30,9 +30,7 @@ Examples:
 
     if (auth.refreshExpiresAt) {
       const expires = new Date(auth.refreshExpiresAt);
-      const days = Math.ceil(
-        (expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-      );
+      const days = Math.ceil((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       logger.log(`  Session: expires ${expires.toLocaleDateString()} (${days}d)`);
     }
 

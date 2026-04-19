@@ -95,10 +95,7 @@ describe("Push audit findings", () => {
       expect(err.status).toBe(422);
 
       const body = err.body as Record<string, unknown>;
-      expect(body.details).toEqual([
-        "Missing required field: name",
-        "Slug too long",
-      ]);
+      expect(body.details).toEqual(["Missing required field: name", "Slug too long"]);
     });
 
     it("returns auditFindings on successful response", async () => {

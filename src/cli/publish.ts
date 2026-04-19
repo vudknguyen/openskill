@@ -3,10 +3,7 @@ import { getValidAuth } from "../core/token-refresh.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { confirm } from "../utils/prompt.js";
 import { validateServerUrl } from "../utils/url.js";
-import {
-  createMarketplaceClient,
-  MarketplaceApiError,
-} from "../core/marketplace-client.js";
+import { createMarketplaceClient, MarketplaceApiError } from "../core/marketplace-client.js";
 
 export const publishCommand = new Command("publish")
   .description("Publish a draft skill to make it publicly available")
@@ -40,10 +37,7 @@ Examples:
 
       // 2. Confirm
       if (!options.yes) {
-        const proceed = await confirm(
-          `Publish "${slug}" and make it publicly available?`,
-          true
-        );
+        const proceed = await confirm(`Publish "${slug}" and make it publicly available?`, true);
         if (!proceed) {
           logger.cancelled();
           return;
@@ -54,11 +48,7 @@ Examples:
       const spinner = createSpinner("Publishing...");
       try {
         const client = createMarketplaceClient(serverUrl);
-        await client.updateSkillStatus(
-          auth.accessToken,
-          slug,
-          "published",
-        );
+        await client.updateSkillStatus(auth.accessToken, slug, "published");
 
         spinner.stop("Published");
         logger.newline();
@@ -69,9 +59,7 @@ Examples:
         if (err instanceof MarketplaceApiError) {
           logger.error(err.message);
         } else {
-          logger.error(
-            `Failed to publish: ${err instanceof Error ? err.message : String(err)}`
-          );
+          logger.error(`Failed to publish: ${err instanceof Error ? err.message : String(err)}`);
         }
         process.exit(1);
       }

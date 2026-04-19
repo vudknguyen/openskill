@@ -88,9 +88,13 @@ Examples:
     logger.log("  Manifest");
     const manifest = loadManifest();
     const records = manifest.skills || [];
-    const marketplaceSkills = records.filter((s: { source?: string }) => s.source === "marketplace");
+    const marketplaceSkills = records.filter(
+      (s: { source?: string }) => s.source === "marketplace"
+    );
     const gitSkills = records.filter((s: { source?: string }) => s.source !== "marketplace");
-    check(`${records.length} skill(s) tracked (${gitSkills.length} git, ${marketplaceSkills.length} marketplace)`);
+    check(
+      `${records.length} skill(s) tracked (${gitSkills.length} git, ${marketplaceSkills.length} marketplace)`
+    );
     ok++;
     logger.newline();
 

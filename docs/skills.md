@@ -43,15 +43,15 @@ Provide examples...
 
 ### Frontmatter Fields
 
-| Field         | Required | Description                                  |
-| ------------- | -------- | -------------------------------------------- |
-| `name`        | Yes      | Unique skill identifier (max 256 characters)  |
-| `description` | Yes      | Brief description (max 4096 characters)      |
-| `version`     | No       | Semantic version (default: 1.0.0)            |
-| `author`      | No       | Skill author name                            |
-| `tags`        | No       | List of tags for discovery                   |
-| `agents`      | No       | List of compatible agents                    |
-| `allowed-tools` | No     | Tools the skill needs (string or list)       |
+| Field           | Required | Description                                  |
+| --------------- | -------- | -------------------------------------------- |
+| `name`          | Yes      | Unique skill identifier (max 256 characters) |
+| `description`   | Yes      | Brief description (max 4096 characters)      |
+| `version`       | No       | Semantic version (default: 1.0.0)            |
+| `author`        | No       | Skill author name                            |
+| `tags`          | No       | List of tags for discovery                   |
+| `agents`        | No       | List of compatible agents                    |
+| `allowed-tools` | No       | Tools the skill needs (string or list)       |
 
 ---
 

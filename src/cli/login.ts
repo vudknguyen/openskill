@@ -136,9 +136,7 @@ Examples:
       openBrowser(deviceData.verification_uri_complete);
       logger.dim("  Browser opened. Approve the device to continue.");
     } else {
-      logger.dim(
-        "  Open the URL above in your browser and approve the device."
-      );
+      logger.dim("  Open the URL above in your browser and approve the device.");
     }
     logger.newline();
 
@@ -157,12 +155,8 @@ Examples:
       const user = await client.fetchCurrentUser(tokenData.access_token);
 
       // Step 5: Save auth (access token expires in expires_in seconds, refresh in 90 days)
-      const expiresAt = new Date(
-        Date.now() + tokenData.expires_in * 1000
-      ).toISOString();
-      const refreshExpiresAt = new Date(
-        Date.now() + 90 * 24 * 60 * 60 * 1000
-      ).toISOString();
+      const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+      const refreshExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
       const authData: AuthData = {
         accessToken: tokenData.access_token,

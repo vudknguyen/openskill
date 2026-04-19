@@ -151,15 +151,18 @@ process.on("unhandledRejection", (reason) => {
 
 // Note: process.on("exit") cannot flush async telemetry - events persist to disk instead
 
-program.parseAsync().then(() => {
-  flushTelemetry();
-}).catch((err) => {
-  if (err instanceof PromptCancelledError) {
+program
+  .parseAsync()
+  .then(() => {
     flushTelemetry();
-    process.exit(0);
-  }
-  trackError(err, process.argv[2] || "unknown");
-  flushTelemetry();
-  logger.error(err.message);
-  process.exit(1);
-});
+  })
+  .catch((err) => {
+    if (err instanceof PromptCancelledError) {
+      flushTelemetry();
+      process.exit(0);
+    }
+    trackError(err, process.argv[2] || "unknown");
+    flushTelemetry();
+    logger.error(err.message);
+    process.exit(1);
+  });

@@ -21,41 +21,52 @@ Examples:
   $ osk share --org my-team --visibility private   # Private org skill
 `
   )
-  .action(async (directory: string, options: {
-    org?: string;
-    visibility?: string;
-    tags?: string;
-    changelog?: string;
-    yes?: boolean;
-  }) => {
-    const orgSlug = options.org || loadConfig().defaultOrg;
-    if (!orgSlug) {
-      logger.error("No org specified. Use --org <org> or set a default with: osk org set-default <org>");
-      process.exitCode = 1;
-      return;
+  .action(
+    async (
+      directory: string,
+      options: {
+        org?: string;
+        visibility?: string;
+        tags?: string;
+        changelog?: string;
+        yes?: boolean;
+      }
+    ) => {
+      const orgSlug = options.org || loadConfig().defaultOrg;
+      if (!orgSlug) {
+        logger.error(
+          "No org specified. Use --org <org> or set a default with: osk org set-default <org>"
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      // Step 1: Push the skill with --org
+      logger.info(`Sharing skill to org "${orgSlug}"...`);
+      logger.newline();
+
+      try {
+        const { pushCommand } = await import("./push.js");
+        await pushCommand.parseAsync([
+          "node",
+          "osk",
+          "push",
+          resolve(directory),
+          "--org",
+          orgSlug,
+          "--visibility",
+          options.visibility || "public",
+          ...(options.tags ? ["--tags", options.tags] : []),
+          ...(options.changelog ? ["--changelog", options.changelog] : []),
+          ...(options.yes ? ["-y"] : []),
+        ]);
+      } catch (err) {
+        logger.error(`Push failed: ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = 1;
+        return;
+      }
+
+      logger.newline();
+      logger.success(`Skill shared with org "${orgSlug}"`);
     }
-
-    // Step 1: Push the skill with --org
-    logger.info(`Sharing skill to org "${orgSlug}"...`);
-    logger.newline();
-
-    try {
-      const { pushCommand } = await import("./push.js");
-      await pushCommand.parseAsync([
-        "node", "osk", "push",
-        resolve(directory),
-        "--org", orgSlug,
-        "--visibility", options.visibility || "public",
-        ...(options.tags ? ["--tags", options.tags] : []),
-        ...(options.changelog ? ["--changelog", options.changelog] : []),
-        ...(options.yes ? ["-y"] : []),
-      ]);
-    } catch (err) {
-      logger.error(`Push failed: ${err instanceof Error ? err.message : String(err)}`);
-      process.exitCode = 1;
-      return;
-    }
-
-    logger.newline();
-    logger.success(`Skill shared with org "${orgSlug}"`);
-  });
+  );

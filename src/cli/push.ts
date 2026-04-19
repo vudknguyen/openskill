@@ -69,7 +69,9 @@ Examples:
         const orgs = await client.listOrgs(auth.accessToken);
         const org = orgs.find((o) => o.slug === orgSlug || o.id === orgSlug);
         if (!org) {
-          logger.error(`Organization "${orgSlug}" not found. Run 'osk org ls' to see your organizations.`);
+          logger.error(
+            `Organization "${orgSlug}" not found. Run 'osk org ls' to see your organizations.`
+          );
           process.exit(1);
         }
         organizationId = org.id;
@@ -96,15 +98,12 @@ Examples:
         const content = readFileSync(skillMdPath, "utf-8");
         skillMd = parseSkillMd(content);
       } catch (err) {
-        logger.error(
-          `Invalid SKILL.md: ${err instanceof Error ? err.message : String(err)}`
-        );
+        logger.error(`Invalid SKILL.md: ${err instanceof Error ? err.message : String(err)}`);
         process.exit(1);
       }
 
       const slug = skillMd.frontmatter.name;
-      const version =
-        skillMd.frontmatter.metadata?.version || "(auto from hash)";
+      const version = skillMd.frontmatter.metadata?.version || "(auto from hash)";
 
       // Get tags from CLI option, SKILL.md frontmatter.tags, or metadata.tags
       const tags = options.tags || skillMd.frontmatter.tags || skillMd.frontmatter.metadata?.tags;
@@ -117,9 +116,7 @@ Examples:
         packSpinner.stop("Packaged");
       } catch (err) {
         packSpinner.stop();
-        logger.error(
-          `Packaging failed: ${err instanceof Error ? err.message : String(err)}`
-        );
+        logger.error(`Packaging failed: ${err instanceof Error ? err.message : String(err)}`);
         process.exit(1);
       }
 
@@ -193,9 +190,7 @@ Examples:
         uploadSpinner.stop("Uploaded");
       } catch (err) {
         uploadSpinner.stop();
-        logger.error(
-          `Upload failed: ${err instanceof Error ? err.message : String(err)}`
-        );
+        logger.error(`Upload failed: ${err instanceof Error ? err.message : String(err)}`);
         process.exit(1);
       }
 
@@ -256,12 +251,9 @@ Examples:
             logger.error(err.message);
           }
         } else {
-          logger.error(
-            `Finalization failed: ${err instanceof Error ? err.message : String(err)}`
-          );
+          logger.error(`Finalization failed: ${err instanceof Error ? err.message : String(err)}`);
         }
         process.exit(1);
       }
     }
   );
-

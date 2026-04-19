@@ -30,9 +30,7 @@ export async function getValidAuth(): Promise<AuthData | null> {
     const client = new MarketplaceClient(validateServerUrl(auth.serverUrl));
     const data = await client.refreshToken(auth.refreshToken);
 
-    const expiresAt = new Date(
-      Date.now() + data.expires_in * 1000
-    ).toISOString();
+    const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
 
     const refreshExpiresAt = data.refresh_expires_in
       ? new Date(Date.now() + data.refresh_expires_in * 1000).toISOString()

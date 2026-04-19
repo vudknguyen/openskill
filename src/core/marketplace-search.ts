@@ -17,7 +17,7 @@ export interface MarketplaceSkillResult {
  */
 export async function searchMarketplace(
   query: string,
-  options?: { server?: string; limit?: number },
+  options?: { server?: string; limit?: number }
 ): Promise<MarketplaceSkillResult[]> {
   const client = createMarketplaceClient(options?.server);
   const data = await client.searchSkills(query, options?.limit);
@@ -59,7 +59,7 @@ export interface DiscoveredSkillResult {
  */
 export async function discoverSkills(
   query: string,
-  options?: { server?: string; limit?: number },
+  options?: { server?: string; limit?: number }
 ): Promise<DiscoveredSkillResult[]> {
   const client = createMarketplaceClient(options?.server);
   const data = await client.discoverSkills(query, { limit: options?.limit });

@@ -29,16 +29,25 @@ orgCommand
   .option("-d, --description <desc>", "Organization description")
   .action(async (name: string, opts: { slug?: string; description?: string }) => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
-    const slug = opts.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const slug =
+      opts.slug ||
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
     const spinner = createSpinner(`Creating organization "${name}"...`);
 
     try {
       const result = await client.createOrg(
         { name, slug, description: opts.description },
-        auth.accessToken,
+        auth.accessToken
       );
       spinner.stop(`Organization created: ${result.slug}`);
       logger.dim(`  ID: ${result.id}`);
@@ -57,7 +66,11 @@ orgCommand
   .description("List your organizations")
   .action(async () => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     const spinner = createSpinner("Loading organizations...");
@@ -88,7 +101,11 @@ orgCommand
   .description("List organization members")
   .action(async (orgSlugOrId: string) => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
@@ -115,7 +132,11 @@ orgCommand
   .option("-r, --role <role>", "Role: admin or member", "member")
   .action(async (orgSlugOrId: string, email: string, opts: { role: string }) => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
@@ -143,7 +164,11 @@ orgCommand
   .description("List organization's skill registry")
   .action(async (orgSlugOrId: string) => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
@@ -162,7 +187,8 @@ orgCommand
       }
 
       for (const s of result.skills) {
-        const auditBadge = s.skillAuditStatus === "pass" ? "✓" : s.skillAuditStatus === "fail" ? "✗" : "?";
+        const auditBadge =
+          s.skillAuditStatus === "pass" ? "✓" : s.skillAuditStatus === "fail" ? "✗" : "?";
         logger.log(`  ${auditBadge} ${s.skillName} (${s.skillSlug})`);
         logger.dim(`    ${s.skillDescription.slice(0, 80)}`);
       }
@@ -179,7 +205,11 @@ orgCommand
   .description("Add a skill to the organization's registry")
   .action(async (orgSlugOrId: string, skillSlug: string) => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
@@ -200,7 +230,11 @@ orgCommand
   .description("Remove a skill from the organization's registry")
   .action(async (orgSlugOrId: string, skillSlug: string) => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
@@ -231,14 +265,20 @@ orgCommand
   .description("Set default organization (used when --org is omitted)")
   .action(async (orgSlugOrId: string) => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     // Verify org exists and user is a member
     const orgs = await client.listOrgs(auth.accessToken);
     const match = orgs.find((o) => o.slug === orgSlugOrId || o.id === orgSlugOrId);
     if (!match) {
-      logger.error(`Organization "${orgSlugOrId}" not found. Run 'osk org ls' to see your organizations.`);
+      logger.error(
+        `Organization "${orgSlugOrId}" not found. Run 'osk org ls' to see your organizations.`
+      );
       process.exitCode = 1;
       return;
     }
@@ -277,7 +317,11 @@ Examples:
     }
 
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
@@ -313,7 +357,11 @@ orgCommand
   .option("-r, --reason <reason>", "Reason for blocking")
   .action(async (orgSlugOrId: string, skillSlug: string, opts: { reason?: string }) => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
@@ -348,7 +396,11 @@ orgCommand
   .description("Unblock a previously blocked skill")
   .action(async (orgSlugOrId: string, skillSlug: string) => {
     const auth = await getValidAuth();
-    if (!auth) { logger.error("Not logged in. Run 'osk login' first."); process.exitCode = 1; return; }
+    if (!auth) {
+      logger.error("Not logged in. Run 'osk login' first.");
+      process.exitCode = 1;
+      return;
+    }
     const client = createMarketplaceClient();
 
     const orgId = await resolveOrgId(client, orgSlugOrId, auth.accessToken);
@@ -381,12 +433,14 @@ orgCommand
 async function resolveOrgId(
   client: ReturnType<typeof createMarketplaceClient>,
   slugOrId: string,
-  token: string,
+  token: string
 ): Promise<string> {
   const orgs = await client.listOrgs(token);
   const match = orgs.find((o) => o.slug === slugOrId || o.id === slugOrId);
   if (!match) {
-    logger.error(`Organization "${slugOrId}" not found. Run 'osk org ls' to see your organizations.`);
+    logger.error(
+      `Organization "${slugOrId}" not found. Run 'osk org ls' to see your organizations.`
+    );
     process.exit(1);
   }
   return match.id;

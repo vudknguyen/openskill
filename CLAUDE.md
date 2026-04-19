@@ -95,6 +95,23 @@ All other functionality uses Node.js built-ins.
 | `completion [shell]`       |       | Generate shell completion (bash, zsh, fish) |
 | `version`                  | `v`   | Show version information                    |
 
+## Pre-commit checks
+
+Before creating any commit, always run:
+
+```bash
+npm run lint              # must pass with 0 errors
+npm run format:check      # must pass
+npm test -- --run         # all tests must pass
+```
+
+Fix all lint errors, formatting issues, and failing tests before committing. `npm run check` runs all of these in sequence (lint + format:check + build + test).
+
+For auto-fixable issues:
+
+- Lint: `npm run lint:fix`
+- Formatting: `npm run format:check -- --write` (or `npm run format`)
+
 ## Key Patterns
 
 - **Agent Interface**: Implement `Agent` in `src/agents/types.ts` to add new agents
@@ -121,6 +138,7 @@ tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
 The skill has specialized workflows that produce better results than ad-hoc answers.
 
 Key routing rules:
+
 - Product ideas, "is this worth building", brainstorming → invoke office-hours
 - Bugs, errors, "why is this broken", 500 errors → invoke investigate
 - Ship, deploy, push, create PR → invoke ship

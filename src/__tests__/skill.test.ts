@@ -162,9 +162,7 @@ describe("loadSkillInfo", () => {
 
   it("uses directory name as relative path when no basePath", () => {
     mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(
-      "---\nname: my-skill\ndescription: A test\n---\nContent"
-    );
+    mockReadFileSync.mockReturnValue("---\nname: my-skill\ndescription: A test\n---\nContent");
 
     const result = loadSkillInfo("/base/skills/my-skill");
     expect(result).not.toBeNull();
@@ -194,9 +192,7 @@ describe("discoverSkills", () => {
     mockExistsSync
       .mockReturnValueOnce(true) // good SKILL.md exists
       .mockReturnValueOnce(false); // bad SKILL.md doesn't exist
-    mockReadFileSync.mockReturnValueOnce(
-      "---\nname: good\ndescription: Good skill\n---\nContent"
-    );
+    mockReadFileSync.mockReturnValueOnce("---\nname: good\ndescription: Good skill\n---\nContent");
 
     const results = discoverSkills("/base");
     expect(results).toHaveLength(1);
@@ -227,9 +223,7 @@ describe("findSkillByName", () => {
   it("returns null when skill not found", () => {
     mockFindSkillDirs.mockReturnValue(["/base/skill-one"]);
     mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(
-      "---\nname: skill-one\ndescription: First\n---\nC1"
-    );
+    mockReadFileSync.mockReturnValue("---\nname: skill-one\ndescription: First\n---\nC1");
 
     expect(findSkillByName("/base", "nonexistent")).toBeNull();
   });

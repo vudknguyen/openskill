@@ -71,7 +71,9 @@ Examples:
     const installed = skills.find((s) => s.name === skillName);
 
     if (!installed) {
-      logger.error(`Skill "${skillName}" not found in ${agent.displayName}${getScopeLabel(foundScope)}`);
+      logger.error(
+        `Skill "${skillName}" not found in ${agent.displayName}${getScopeLabel(foundScope)}`
+      );
       return;
     }
 
@@ -99,7 +101,9 @@ Examples:
         logger.newline();
         logger.dim("Run 'osk update' to apply the update.");
       } catch (err) {
-        logger.error(`Failed to check for updates: ${err instanceof Error ? err.message : String(err)}`);
+        logger.error(
+          `Failed to check for updates: ${err instanceof Error ? err.message : String(err)}`
+        );
         process.exitCode = 1;
       }
     } else {

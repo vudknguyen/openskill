@@ -62,7 +62,8 @@ Examples:
     logger.log("  Recently installed:");
     for (const skill of recent) {
       const date = new Date(skill.installedAt).toLocaleDateString();
-      const source = skill.source === "marketplace" ? "marketplace" : `${skill.repoOwner}/${skill.repoName}`;
+      const source =
+        skill.source === "marketplace" ? "marketplace" : `${skill.repoOwner}/${skill.repoName}`;
       logger.dim(`    ${skill.name} (${skill.agent}) — ${date} from ${source}`);
     }
   });

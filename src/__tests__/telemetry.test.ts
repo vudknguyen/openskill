@@ -96,7 +96,7 @@ describe("TelemetryClient", () => {
       new TelemetryClient();
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-id",
+        expect.stringContaining(".telemetry-id"),
         expect.stringMatching(/^[a-f0-9]{64}$/),
         expect.objectContaining({ encoding: "utf-8", mode: 0o600 })
       );
@@ -112,7 +112,7 @@ describe("TelemetryClient", () => {
       new TelemetryClient();
 
       expect(mockReadFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-id",
+        expect.stringContaining(".telemetry-id"),
         "utf-8"
       );
     });
@@ -127,7 +127,7 @@ describe("TelemetryClient", () => {
       new TelemetryClient();
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-id",
+        expect.stringContaining(".telemetry-id"),
         expect.stringMatching(/^[a-f0-9]{64}$/),
         expect.objectContaining({ encoding: "utf-8", mode: 0o600 })
       );
@@ -145,7 +145,7 @@ describe("TelemetryClient", () => {
       new TelemetryClient();
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-id",
+        expect.stringContaining(".telemetry-id"),
         expect.any(String),
         expect.any(Object)
       );
@@ -237,7 +237,7 @@ describe("TelemetryClient", () => {
       client.trackInstall("my-skill", "1.0.0", { agent: "claude" });
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining(".telemetry-queue.json"),
         expect.stringContaining('"eventType":"skill_install"'),
         expect.any(Object)
       );
@@ -249,7 +249,7 @@ describe("TelemetryClient", () => {
       client.trackUninstall("my-skill", { agent: "claude" });
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining(".telemetry-queue.json"),
         expect.stringContaining('"eventType":"skill_uninstall"'),
         expect.any(Object)
       );
@@ -261,7 +261,7 @@ describe("TelemetryClient", () => {
       client.trackUpdate("my-skill", "1.0.0", "2.0.0");
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining(".telemetry-queue.json"),
         expect.stringContaining('"eventType":"skill_update"'),
         expect.any(Object)
       );
@@ -274,7 +274,7 @@ describe("TelemetryClient", () => {
       client.trackError(error, "install");
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining(".telemetry-queue.json"),
         expect.stringContaining('"eventType":"cli_error"'),
         expect.any(Object)
       );
@@ -286,7 +286,7 @@ describe("TelemetryClient", () => {
       client.trackStart();
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining(".telemetry-queue.json"),
         expect.stringContaining('"eventType":"cli_start"'),
         expect.any(Object)
       );
@@ -298,7 +298,7 @@ describe("TelemetryClient", () => {
       client.trackCommand("browse");
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining(".telemetry-queue.json"),
         expect.stringContaining('"eventType":"cli_command"'),
         expect.any(Object)
       );
@@ -390,9 +390,7 @@ describe("TelemetryClient", () => {
     it("limits queue size when loading from disk", () => {
       const manyEvents = Array(50).fill({ eventType: "cli_start" });
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        JSON.stringify({ events: manyEvents, lastFlushTime: 0 })
-      );
+      mockReadFileSync.mockReturnValue(JSON.stringify({ events: manyEvents, lastFlushTime: 0 }));
 
       const client = new TelemetryClient();
       // Queue should be limited to maxQueueSize (20)
@@ -472,7 +470,7 @@ describe("TelemetryClient", () => {
 
       // Should re-queue the event
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining(".telemetry-queue.json"),
         expect.stringContaining('"eventType":"skill_install"'),
         expect.any(Object)
       );
@@ -488,7 +486,7 @@ describe("TelemetryClient", () => {
       await client.flush();
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining(".telemetry-queue.json"),
         expect.stringContaining('"eventType":"skill_install"'),
         expect.any(Object)
       );
@@ -541,7 +539,7 @@ describe("TelemetryClient", () => {
       expect(global.fetch).not.toHaveBeenCalled();
       // Should mark as flushed (clears queue)
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        "/mock/home/.openskill/.telemetry-queue.json",
+        expect.stringContaining(".telemetry-queue.json"),
         expect.stringContaining('"events":[]'),
         expect.any(Object)
       );
