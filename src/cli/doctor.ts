@@ -1,7 +1,5 @@
 import { Command } from "commander";
 import { existsSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
 import { getAllAgents } from "../agents/index.js";
 import { loadConfig, getConfigDir } from "../core/config.js";
 import { loadAuth } from "../core/auth.js";

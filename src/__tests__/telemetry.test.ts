@@ -52,7 +52,6 @@ vi.mock("../core/config.js", () => ({
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import {
   TelemetryClient,
-  getTelemetry,
   resetTelemetry,
   trackInstall,
   trackUninstall,
@@ -397,7 +396,7 @@ describe("TelemetryClient", () => {
 
       const client = new TelemetryClient();
       // Queue should be limited to maxQueueSize (20)
-      expect((client as any).queue.length).toBeLessThanOrEqual(20);
+      expect((client as unknown as { queue: unknown[] }).queue.length).toBeLessThanOrEqual(20);
     });
 
     it("handles saveQueueToDisk write errors gracefully", () => {
@@ -515,7 +514,7 @@ describe("TelemetryClient", () => {
 
       const client = new TelemetryClient();
       // Force add event to test flush behavior
-      (client as any).queue = [{ eventType: "test" }];
+      (client as unknown as { queue: unknown[] }).queue = [{ eventType: "test" }];
       await client.flush();
 
       expect(global.fetch).not.toHaveBeenCalled();

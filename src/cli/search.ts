@@ -165,7 +165,7 @@ Examples:
         const meta = [
           formatAuditBadge(skill.auditStatus),
           skill.repoFullName,
-          skill.stars != null && skill.stars > 0 && `★ ${skill.stars}`,
+          skill.stars !== null && skill.stars !== undefined && skill.stars > 0 && `★ ${skill.stars}`,
           `osk install ${skill.repoFullName}`,
         ].filter(Boolean).join("  ·  ");
         logger.dim(`    ${meta}`);

@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { existsSync } from "fs";
 import { join } from "path";
-import { autocomplete, select, confirm, closePrompt } from "../utils/prompt.js";
+import { autocomplete, confirm, closePrompt } from "../utils/prompt.js";
 import { getAgent, getAllAgents, getAgentNames, InstallScope } from "../agents/index.js";
 import { loadConfig } from "../core/config.js";
 import { cloneRepo, getRepoCommit } from "../core/git.js";

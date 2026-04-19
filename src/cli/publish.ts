@@ -54,7 +54,7 @@ Examples:
       const spinner = createSpinner("Publishing...");
       try {
         const client = createMarketplaceClient(serverUrl);
-        const result = await client.updateSkillStatus(
+        await client.updateSkillStatus(
           auth.accessToken,
           slug,
           "published",

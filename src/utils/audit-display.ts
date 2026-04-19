@@ -4,7 +4,7 @@ import type { AuditFinding } from "../core/marketplace-client.js";
 /** Strip ANSI escape sequences and control characters from server-provided strings. */
 export function sanitize(str: string): string {
   // eslint-disable-next-line no-control-regex
-  return str.replace(/[\x00-\x08\x0B-\x1F\x7F]|\x1b[\[\]PX^_][^\x07\x1b]*[\x07\x1b\\]?|\x1b[^[\]PX^_\x1b]/g, "");
+  return str.replace(/[\x00-\x08\x0B-\x1F\x7F]|\x1b[[\]PX^_][^\x07\x1b]*[\x07\x1b\\]?|\x1b[^[\]PX^_\x1b]/g, "");
 }
 
 export const severityConfig: Record<string, { icon: string; color: string }> = {

@@ -90,7 +90,7 @@ import { logger } from "../utils/logger.js";
 import { confirm } from "../utils/prompt.js";
 import { existsSync, readFileSync } from "fs";
 import { displayFindings } from "../utils/audit-display.js";
-import { createMarketplaceClient, MarketplaceApiError } from "../core/marketplace-client.js";
+import { MarketplaceApiError } from "../core/marketplace-client.js";
 import { pushCommand } from "../cli/push.js";
 
 const mockGetValidAuth = vi.mocked(getValidAuth);
@@ -170,10 +170,10 @@ beforeEach(() => {
   mockUploadToPresignedUrl.mockReset();
   mockCompletePublish.mockReset();
   mockListOrgs.mockReset();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+   
+  exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
     throw new Error("process.exit");
-  }) as any);
+  }) as never);
 });
 
 describe("push command", () => {

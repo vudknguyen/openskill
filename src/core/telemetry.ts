@@ -253,7 +253,7 @@ export class TelemetryClient {
   private sanitizeStack(stack: string | undefined): string | undefined {
     if (!stack) return undefined;
     // Remove home directory from paths
-    let sanitized = stack.replace(new RegExp(this.homeDir, "g"), "~");
+    const sanitized = stack.replace(new RegExp(this.homeDir, "g"), "~");
     // Truncate to reasonable length
     return sanitized.slice(0, 2000);
   }

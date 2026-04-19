@@ -12,7 +12,6 @@ import {
   createMarketplaceClient,
   MarketplaceApiError,
   type PushInitResponse,
-  type PushCompleteResponse,
   type AuditFinding,
 } from "../core/marketplace-client.js";
 

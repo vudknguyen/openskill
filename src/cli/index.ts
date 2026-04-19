@@ -61,7 +61,6 @@ program
         logger.dim(`  • ${stack.name}`);
       }
       logger.newline();
-      const tags = stacks.flatMap((s) => s.tags).slice(0, 3).join(", ");
       logger.dim(`Try: osk search ${stacks[0].tags[0]}`);
       logger.newline();
     }

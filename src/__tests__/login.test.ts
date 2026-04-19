@@ -91,12 +91,8 @@ describe("openBrowser", () => {
   it("validates URL format before executing", async () => {
     // openBrowser is not exported, so we test it indirectly via the login action.
     // We need to import the module to get the action handler registered via Commander.
-    const { Command } = await import("commander");
-    const { execFile } = await import("child_process");
-
-    // Get the action callback that was registered
-    const mockCommand = (Command as unknown as ReturnType<typeof vi.fn>).mock
-      .results[0]?.value;
+    await import("commander");
+    await import("child_process");
 
     // openBrowser silently returns on invalid URLs -- we verify execFile is
     // never called for an invalid URL by testing the internal guard directly.

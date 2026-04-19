@@ -1,4 +1,4 @@
-import { createMarketplaceClient, type UnifiedSkill } from "./marketplace-client.js";
+import { createMarketplaceClient } from "./marketplace-client.js";
 
 export interface MarketplaceSkillResult {
   slug: string;

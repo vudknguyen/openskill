@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { existsSync, readFileSync } from "fs";
+import { existsSync } from "fs";
 import { join } from "path";
 import { getAgent, getAllAgents, type InstallScope } from "../agents/index.js";
 import { getSkillRecord } from "../core/manifest.js";
@@ -67,7 +67,6 @@ Examples:
     }
 
     // Find the SKILL.md from the installed skill's actual path
-    const basePath = foundScope === "global" ? agent.getGlobalSkillPath() : agent.getSkillPath();
     const skills = await agent.listSkills(undefined, foundScope);
     const installed = skills.find((s) => s.name === skillName);
 
