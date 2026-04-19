@@ -102,9 +102,7 @@ describe("getValidAuth", () => {
     });
     mockLoadAuth.mockReturnValue(auth as ReturnType<typeof loadAuth>);
 
-    mockRefreshToken.mockRejectedValue(
-      new MarketplaceApiError("Refresh failed (401)", 401),
-    );
+    mockRefreshToken.mockRejectedValue(new MarketplaceApiError("Refresh failed (401)", 401));
 
     const result = await getValidAuth();
     expect(result).toBeNull();

@@ -1,18 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock marketplace client
-const { mockGetSkillDownload, mockDownloadFromPresignedUrl, mockCreateMarketplaceClient } = vi.hoisted(() => {
-  const mockGetSkillDownload = vi.fn();
-  const mockDownloadFromPresignedUrl = vi.fn();
-  return {
-    mockGetSkillDownload,
-    mockDownloadFromPresignedUrl,
-    mockCreateMarketplaceClient: vi.fn().mockReturnValue({
-      getSkillDownload: mockGetSkillDownload,
-      downloadFromPresignedUrl: mockDownloadFromPresignedUrl,
-    }),
-  };
-});
+const { mockGetSkillDownload, mockDownloadFromPresignedUrl, mockCreateMarketplaceClient } =
+  vi.hoisted(() => {
+    const mockGetSkillDownload = vi.fn();
+    const mockDownloadFromPresignedUrl = vi.fn();
+    return {
+      mockGetSkillDownload,
+      mockDownloadFromPresignedUrl,
+      mockCreateMarketplaceClient: vi.fn().mockReturnValue({
+        getSkillDownload: mockGetSkillDownload,
+        downloadFromPresignedUrl: mockDownloadFromPresignedUrl,
+      }),
+    };
+  });
 
 vi.mock("../core/marketplace-client.js", () => ({
   createMarketplaceClient: mockCreateMarketplaceClient,
@@ -85,10 +86,7 @@ import { loadSkillFromDir } from "../core/skill.js";
 import { addSkillRecord } from "../core/manifest.js";
 import { getAgent } from "../agents/index.js";
 import { rmSync } from "fs";
-import {
-  fetchMarketplaceSkill,
-  installFromMarketplace,
-} from "../core/marketplace-installer.js";
+import { fetchMarketplaceSkill, installFromMarketplace } from "../core/marketplace-installer.js";
 
 const mockLoadSkillFromDir = vi.mocked(loadSkillFromDir);
 const mockAddSkillRecord = vi.mocked(addSkillRecord);
@@ -132,9 +130,9 @@ describe("fetchMarketplaceSkill", () => {
   it("throws with server error message when client throws", async () => {
     mockGetSkillDownload.mockRejectedValue(new Error("Skill not found"));
 
-    await expect(
-      fetchMarketplaceSkill("https://example.com", "nonexistent"),
-    ).rejects.toThrow("Skill not found");
+    await expect(fetchMarketplaceSkill("https://example.com", "nonexistent")).rejects.toThrow(
+      "Skill not found"
+    );
   });
 });
 
@@ -185,7 +183,9 @@ describe("installFromMarketplace", () => {
     await installFromMarketplace("my-skill", {});
 
     expect(mockGetSkillDownload).toHaveBeenCalledWith("my-skill", undefined);
-    expect(mockDownloadFromPresignedUrl).toHaveBeenCalledWith("https://cdn.example.com/skill.tar.gz");
+    expect(mockDownloadFromPresignedUrl).toHaveBeenCalledWith(
+      "https://cdn.example.com/skill.tar.gz"
+    );
     expect(mockAgent.installSkill).toHaveBeenCalled();
     expect(mockAddSkillRecord).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -197,7 +197,7 @@ describe("installFromMarketplace", () => {
         source: "marketplace",
         marketplaceSlug: "my-skill",
         marketplaceVersion: "1.0.0",
-      }),
+      })
     );
   });
 
@@ -222,9 +222,7 @@ describe("installFromMarketplace", () => {
 
     expect(mockGetAgent).toHaveBeenCalledWith("cursor");
     expect(cursorAgent.installSkill).toHaveBeenCalled();
-    expect(mockAddSkillRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ agent: "cursor" }),
-    );
+    expect(mockAddSkillRecord).toHaveBeenCalledWith(expect.objectContaining({ agent: "cursor" }));
   });
 
   it("uses specified scope", async () => {
@@ -232,9 +230,7 @@ describe("installFromMarketplace", () => {
 
     await installFromMarketplace("my-skill", { scope: "global" });
 
-    expect(mockAddSkillRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ scope: "global" }),
-    );
+    expect(mockAddSkillRecord).toHaveBeenCalledWith(expect.objectContaining({ scope: "global" }));
   });
 
   it("passes server override to createMarketplaceClient", async () => {
@@ -257,7 +253,7 @@ describe("installFromMarketplace", () => {
     mockGetSkillDownload.mockRejectedValue(new Error("Not found"));
 
     await expect(installFromMarketplace("nonexistent", {})).rejects.toThrow(
-      "Failed to find 'nonexistent' on marketplace",
+      "Failed to find 'nonexistent' on marketplace"
     );
   });
 
@@ -265,9 +261,7 @@ describe("installFromMarketplace", () => {
     setupMocks();
     mockDownloadFromPresignedUrl.mockRejectedValue(new Error("Download failed (403)"));
 
-    await expect(installFromMarketplace("my-skill", {})).rejects.toThrow(
-      "Download failed (403)",
-    );
+    await expect(installFromMarketplace("my-skill", {})).rejects.toThrow("Download failed (403)");
   });
 
   it("throws when downloaded package has no valid SKILL.md", async () => {
@@ -275,7 +269,7 @@ describe("installFromMarketplace", () => {
     mockLoadSkillFromDir.mockReturnValue(null);
 
     await expect(installFromMarketplace("bad-skill", {})).rejects.toThrow(
-      "Downloaded package does not contain a valid SKILL.md",
+      "Downloaded package does not contain a valid SKILL.md"
     );
   });
 
@@ -283,9 +277,9 @@ describe("installFromMarketplace", () => {
     setupMocks();
     mockGetAgent.mockReturnValue(undefined);
 
-    await expect(
-      installFromMarketplace("my-skill", { agent: "unknown-agent" }),
-    ).rejects.toThrow("Unknown agent: unknown-agent");
+    await expect(installFromMarketplace("my-skill", { agent: "unknown-agent" })).rejects.toThrow(
+      "Unknown agent: unknown-agent"
+    );
   });
 
   it("throws when skill is not compatible with agent", async () => {
@@ -309,7 +303,7 @@ describe("installFromMarketplace", () => {
     mockGetAgent.mockReturnValue(incompatibleAgent);
 
     await expect(installFromMarketplace("my-skill", {})).rejects.toThrow(
-      "not compatible with Claude",
+      "not compatible with Claude"
     );
   });
 
@@ -325,7 +319,7 @@ describe("installFromMarketplace", () => {
     await installFromMarketplace("my-skill", {});
 
     expect(mockAddSkillRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ commitHash: "2.0.0" }),
+      expect.objectContaining({ commitHash: "2.0.0" })
     );
   });
 
@@ -337,7 +331,7 @@ describe("installFromMarketplace", () => {
 
     expect(mockRmSync).toHaveBeenCalledWith(
       expect.stringContaining("/mock/tmp/osk-marketplace-my-skill-"),
-      { recursive: true, force: true },
+      { recursive: true, force: true }
     );
   });
 
@@ -348,7 +342,7 @@ describe("installFromMarketplace", () => {
 
     expect(mockRmSync).toHaveBeenCalledWith(
       expect.stringContaining("/mock/tmp/osk-marketplace-my-skill-"),
-      { recursive: true, force: true },
+      { recursive: true, force: true }
     );
   });
 
@@ -356,7 +350,7 @@ describe("installFromMarketplace", () => {
     setupMocks({ fileHash: "expected-hash-that-wont-match" });
 
     await expect(installFromMarketplace("my-skill", {})).rejects.toThrow(
-      "Package integrity check failed",
+      "Package integrity check failed"
     );
   });
 

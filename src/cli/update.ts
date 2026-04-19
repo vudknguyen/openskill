@@ -7,7 +7,10 @@ import { getAllInstalledSkills, addSkillRecord, InstalledSkillRecord } from "../
 import { refreshAllRepos } from "../core/registry.js";
 import { loadSkillFromDir } from "../core/skill.js";
 import { installFromMarketplace } from "../core/marketplace-installer.js";
-import { checkMarketplaceUpdates, type MarketplaceUpdate } from "../core/marketplace-update-checker.js";
+import {
+  checkMarketplaceUpdates,
+  type MarketplaceUpdate,
+} from "../core/marketplace-update-checker.js";
 import { safeJoinPath } from "../utils/fs.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { autocomplete } from "../utils/prompt.js";
@@ -80,10 +83,7 @@ Examples:
 
     // Check marketplace-based skills
     if (marketplaceSkills.length > 0) {
-      const mpUpdates = await checkMarketplaceSkillUpdates(
-        marketplaceSkills,
-        options.server,
-      );
+      const mpUpdates = await checkMarketplaceSkillUpdates(marketplaceSkills, options.server);
       updates.push(...mpUpdates);
     }
 
@@ -170,9 +170,7 @@ Examples:
 // Git update checking
 // ---------------------------------------------------------------------------
 
-async function checkGitUpdates(
-  skills: InstalledSkillRecord[],
-): Promise<GitSkillUpdate[]> {
+async function checkGitUpdates(skills: InstalledSkillRecord[]): Promise<GitSkillUpdate[]> {
   const repoMap = new Map<string, InstalledSkillRecord[]>();
   for (const skill of skills) {
     const key = `${skill.repoOwner}/${skill.repoName}`;
@@ -214,9 +212,7 @@ async function checkGitUpdates(
   }
 
   spinner.stop(
-    updates.length > 0
-      ? `Found ${updates.length} git update(s)`
-      : "Git skills up to date",
+    updates.length > 0 ? `Found ${updates.length} git update(s)` : "Git skills up to date"
   );
   return updates;
 }
@@ -266,7 +262,7 @@ async function applyGitUpdate(update: GitSkillUpdate): Promise<void> {
 
 async function checkMarketplaceSkillUpdates(
   skills: InstalledSkillRecord[],
-  serverOverride?: string,
+  serverOverride?: string
 ): Promise<MarketplaceSkillUpdate[]> {
   const spinner = createSpinner(`Checking marketplace (0/${skills.length})...`);
 
@@ -286,14 +282,14 @@ async function checkMarketplaceSkillUpdates(
   spinner.stop(
     updates.length > 0
       ? `Found ${updates.length} marketplace update(s)`
-      : "Marketplace skills up to date",
+      : "Marketplace skills up to date"
   );
   return updates;
 }
 
 async function applyMarketplaceUpdate(
   update: MarketplaceSkillUpdate,
-  serverOverride?: string,
+  serverOverride?: string
 ): Promise<void> {
   const { record, update: mp } = update;
   // Track as update (installFromMarketplace tracks as install, but this is an update)

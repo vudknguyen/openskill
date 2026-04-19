@@ -59,27 +59,19 @@ beforeEach(() => {
 
 describe("validateServerUrl", () => {
   it("rejects ftp:// URLs", () => {
-    expect(() => validateServerUrl("ftp://example.com")).toThrow(
-      "Unsupported protocol: ftp:",
-    );
+    expect(() => validateServerUrl("ftp://example.com")).toThrow("Unsupported protocol: ftp:");
   });
 
   it("rejects malformed URLs", () => {
-    expect(() => validateServerUrl("not-a-url")).toThrow(
-      "Invalid server URL: not-a-url",
-    );
+    expect(() => validateServerUrl("not-a-url")).toThrow("Invalid server URL: not-a-url");
   });
 
   it("accepts https:// URLs and returns origin", () => {
-    expect(validateServerUrl("https://example.com/path")).toBe(
-      "https://example.com",
-    );
+    expect(validateServerUrl("https://example.com/path")).toBe("https://example.com");
   });
 
   it("accepts http:// URLs and returns origin", () => {
-    expect(validateServerUrl("http://localhost:3000/foo")).toBe(
-      "http://localhost:3000",
-    );
+    expect(validateServerUrl("http://localhost:3000/foo")).toBe("http://localhost:3000");
   });
 });
 
@@ -152,7 +144,7 @@ describe("pollForToken", () => {
     client: { pollDeviceToken: (code: string) => Promise<Record<string, unknown>> },
     deviceCode: string,
     interval: number,
-    expiresIn: number,
+    expiresIn: number
   ): Promise<Record<string, unknown>> {
     const deadline = Date.now() + expiresIn * 1000;
 
@@ -185,9 +177,7 @@ describe("pollForToken", () => {
       pollDeviceToken: vi.fn().mockResolvedValue({ error: "expired_token" }),
     };
 
-    await expect(pollForToken(client, "dc-1", 0, 60)).rejects.toThrow(
-      "expired_token",
-    );
+    await expect(pollForToken(client, "dc-1", 0, 60)).rejects.toThrow("expired_token");
     expect(client.pollDeviceToken).toHaveBeenCalled();
   });
 
@@ -196,9 +186,7 @@ describe("pollForToken", () => {
       pollDeviceToken: vi.fn().mockResolvedValue({ error: "access_denied" }),
     };
 
-    await expect(pollForToken(client, "dc-1", 0, 60)).rejects.toThrow(
-      "access_denied",
-    );
+    await expect(pollForToken(client, "dc-1", 0, 60)).rejects.toThrow("access_denied");
     expect(client.pollDeviceToken).toHaveBeenCalled();
   });
 
@@ -218,9 +206,7 @@ describe("pollForToken", () => {
 
     const result = await pollForToken(client, "dc-1", 0, 60);
 
-    expect(result).toEqual(
-      expect.objectContaining({ access_token: "at-123" }),
-    );
+    expect(result).toEqual(expect.objectContaining({ access_token: "at-123" }));
     // Called 3 times: 2 slow_down + 1 success
     expect(client.pollDeviceToken).toHaveBeenCalledTimes(3);
   });
@@ -241,9 +227,7 @@ describe("pollForToken", () => {
 
     const result = await pollForToken(client, "dc-1", 0, 60);
 
-    expect(result).toEqual(
-      expect.objectContaining({ access_token: "at-ok" }),
-    );
+    expect(result).toEqual(expect.objectContaining({ access_token: "at-ok" }));
     expect(client.pollDeviceToken).toHaveBeenCalledTimes(3);
   });
 
@@ -253,8 +237,6 @@ describe("pollForToken", () => {
     };
 
     // expiresIn = 0 means deadline is already in the past
-    await expect(pollForToken(client, "dc-1", 0, 0)).rejects.toThrow(
-      "expired_token",
-    );
+    await expect(pollForToken(client, "dc-1", 0, 0)).rejects.toThrow("expired_token");
   });
 });

@@ -24,11 +24,7 @@ vi.mock("tar", () => ({
 
 import { existsSync, readFileSync, mkdirSync, rmSync } from "fs";
 import * as tar from "tar";
-import {
-  packageSkill,
-  calculateHash,
-  formatFileSize,
-} from "../core/package.js";
+import { packageSkill, calculateHash, formatFileSize } from "../core/package.js";
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockReadFileSync = vi.mocked(readFileSync);
@@ -43,9 +39,7 @@ beforeEach(() => {
 describe("packageSkill", () => {
   it("throws when SKILL.md is missing", async () => {
     mockExistsSync.mockReturnValue(false);
-    await expect(packageSkill("/skill-dir")).rejects.toThrow(
-      "No SKILL.md found in /skill-dir"
-    );
+    await expect(packageSkill("/skill-dir")).rejects.toThrow("No SKILL.md found in /skill-dir");
   });
 
   it("creates temp dir, tars, reads buffer, and cleans up", async () => {
@@ -56,10 +50,9 @@ describe("packageSkill", () => {
     const result = await packageSkill("/skill-dir");
 
     expect(result).toEqual(tarContent);
-    expect(mockMkdirSync).toHaveBeenCalledWith(
-      expect.stringContaining("/mock/tmp/osk-pkg-"),
-      { recursive: true }
-    );
+    expect(mockMkdirSync).toHaveBeenCalledWith(expect.stringContaining("/mock/tmp/osk-pkg-"), {
+      recursive: true,
+    });
     expect(mockTarCreate).toHaveBeenCalledOnce();
     expect(mockRmSync).toHaveBeenCalledOnce();
   });
@@ -150,9 +143,7 @@ describe("calculateHash", () => {
     const hash = calculateHash(buffer);
     expect(hash).toHaveLength(64);
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(hash).toBe(
-      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    );
+    expect(hash).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
   });
 });
 

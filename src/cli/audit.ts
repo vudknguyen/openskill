@@ -6,15 +6,12 @@ import { loadConfig } from "../core/config.js";
 import { validateServerUrl } from "../utils/url.js";
 import { logger, createSpinner } from "../utils/logger.js";
 import { displayFindings } from "../utils/audit-display.js";
-import {
-  createMarketplaceClient,
-  MarketplaceApiError,
-} from "../core/marketplace-client.js";
+import { createMarketplaceClient, MarketplaceApiError } from "../core/marketplace-client.js";
 
 const statusColors: Record<string, string> = {
-  pass:    "\x1b[32m",  // green
-  warning: "\x1b[33m",  // yellow
-  fail:    "\x1b[31m",  // red
+  pass: "\x1b[32m", // green
+  warning: "\x1b[33m", // yellow
+  fail: "\x1b[31m", // red
 };
 
 export const auditCommand = new Command("audit")
@@ -27,7 +24,7 @@ export const auditCommand = new Command("audit")
 Examples:
   $ osk audit                  # Audit current directory
   $ osk audit ./my-skill       # Audit specific directory
-`,
+`
   )
   .action(async (directory: string, options: { server?: string }) => {
     // 1. Resolve directory and read SKILL.md
@@ -83,9 +80,7 @@ Examples:
       if (err instanceof MarketplaceApiError) {
         logger.error(err.message);
       } else {
-        logger.error(
-          `Audit failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        logger.error(`Audit failed: ${err instanceof Error ? err.message : String(err)}`);
       }
       process.exit(1);
     }

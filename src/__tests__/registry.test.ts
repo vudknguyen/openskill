@@ -37,7 +37,7 @@ vi.mock("../utils/fs.js", () => ({
     return normalizedChild.startsWith(normalizedParent);
   }),
   isValidConfigRepoName: vi.fn(
-    (name: string) => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name) && name.length <= 100,
+    (name: string) => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name) && name.length <= 100
   ),
 }));
 
@@ -155,9 +155,7 @@ describe("refreshRepo", () => {
   it("throws when git URL is invalid", async () => {
     mockedParseGitUrl.mockReturnValue(null);
 
-    await expect(refreshRepo("test-repo", "not-a-url")).rejects.toThrow(
-      "Invalid repository URL",
-    );
+    await expect(refreshRepo("test-repo", "not-a-url")).rejects.toThrow("Invalid repository URL");
   });
 
   it("throws when repo update fails", async () => {
@@ -174,7 +172,7 @@ describe("refreshRepo", () => {
     });
 
     await expect(refreshRepo("test-repo", "https://github.com/owner/repo")).rejects.toThrow(
-      "Failed to fetch repository",
+      "Failed to fetch repository"
     );
   });
 
@@ -247,7 +245,7 @@ describe("searchSkills", () => {
     ];
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: cachedSkills }),
+      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: cachedSkills })
     );
 
     const results = await searchSkills("deploy");
@@ -267,12 +265,10 @@ describe("searchSkills", () => {
       agents: {},
     });
 
-    const cachedSkills = [
-      makeRepoSkill({ name: "my-tool", description: "Helps deploy to AWS" }),
-    ];
+    const cachedSkills = [makeRepoSkill({ name: "my-tool", description: "Helps deploy to AWS" })];
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: cachedSkills }),
+      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: cachedSkills })
     );
 
     const results = await searchSkills("deploy");
@@ -292,12 +288,10 @@ describe("searchSkills", () => {
       agents: {},
     });
 
-    const cachedSkills = [
-      makeRepoSkill({ name: "Deploy-AWS", description: "Deploy to AWS" }),
-    ];
+    const cachedSkills = [makeRepoSkill({ name: "Deploy-AWS", description: "Deploy to AWS" })];
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: cachedSkills }),
+      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: cachedSkills })
     );
 
     const results = await searchSkills("deploy");
@@ -365,7 +359,7 @@ describe("searchSkills", () => {
 
     const goodSkills = [makeRepoSkill({ name: "good-skill", description: "Works fine" })];
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: goodSkills }),
+      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: goodSkills })
     );
 
     const results = await searchSkills("good");
@@ -388,7 +382,7 @@ describe("searchSkills", () => {
     const cachedSkills = [makeRepoSkill({ name: "deploy-aws", description: "Deploy to AWS" })];
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: cachedSkills }),
+      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: cachedSkills })
     );
 
     const results = await searchSkills("kubernetes");
@@ -450,7 +444,12 @@ describe("refreshAllRepos", () => {
     mockedParseGitUrl.mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
-        return { host: "github.com", owner: "good", repo: "repo", cloneUrl: "https://github.com/good/repo.git" };
+        return {
+          host: "github.com",
+          owner: "good",
+          repo: "repo",
+          cloneUrl: "https://github.com/good/repo.git",
+        };
       }
       return null; // second call fails
     });
@@ -490,13 +489,10 @@ describe("getSkillFromRepo", () => {
   });
 
   it("returns skill by name from cached repo", () => {
-    const skills = [
-      makeRepoSkill({ name: "skill-a" }),
-      makeRepoSkill({ name: "skill-b" }),
-    ];
+    const skills = [makeRepoSkill({ name: "skill-a" }), makeRepoSkill({ name: "skill-b" })];
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills }),
+      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills })
     );
 
     const result = getSkillFromRepo("test-repo", "skill-b");
@@ -508,7 +504,7 @@ describe("getSkillFromRepo", () => {
   it("returns null when skill is not found", () => {
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: [] }),
+      JSON.stringify({ lastUpdated: "2024-01-01T00:00:00Z", skills: [] })
     );
 
     const result = getSkillFromRepo("test-repo", "nonexistent");
@@ -571,7 +567,7 @@ describe("getRepoInfo", () => {
   it("returns zero skill count when cache has invalid skills structure", () => {
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastUpdated: "2024-01-01", skills: "not-array" }),
+      JSON.stringify({ lastUpdated: "2024-01-01", skills: "not-array" })
     );
 
     const info = getRepoInfo("repo", "https://github.com/test/repo");

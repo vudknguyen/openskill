@@ -39,7 +39,9 @@ Examples:
           process.exitCode = 1;
           return;
         }
-        const data = (await res.json()) as { skills: Array<{ slug: string; name: string; description: string }> };
+        const data = (await res.json()) as {
+          skills: Array<{ slug: string; name: string; description: string }>;
+        };
         spinner.stop(`${data.skills.length} starred skill(s)`);
 
         if (data.skills.length === 0) {
@@ -61,7 +63,9 @@ Examples:
 
     // Star or unstar a skill
     const action = options.unstar ? "unstar" : "star";
-    const spinner = createSpinner(`${options.unstar ? "Removing star from" : "Starring"} ${slug}...`);
+    const spinner = createSpinner(
+      `${options.unstar ? "Removing star from" : "Starring"} ${slug}...`
+    );
     try {
       const method = options.unstar ? "DELETE" : "POST";
       const res = await fetch(`${serverUrl}/api/skills/${encodeURIComponent(slug)}/star`, {

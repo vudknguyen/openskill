@@ -103,9 +103,7 @@ export async function installFromMarketplace(
   if (metadata.fileSize && metadata.fileSize > MAX_DOWNLOAD_SIZE) {
     const sizeMB = (metadata.fileSize / 1024 / 1024).toFixed(1);
     const limitMB = (MAX_DOWNLOAD_SIZE / 1024 / 1024).toFixed(0);
-    throw new Error(
-      `Package too large (${sizeMB}MB). Maximum allowed: ${limitMB}MB.`
-    );
+    throw new Error(`Package too large (${sizeMB}MB). Maximum allowed: ${limitMB}MB.`);
   }
 
   // 2. Download, extract, and install (temp dir cleaned up in finally)

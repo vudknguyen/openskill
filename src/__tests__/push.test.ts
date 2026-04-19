@@ -144,10 +144,7 @@ function setupDefaults() {
 }
 
 /** Run the push command action with given args/options */
-async function runPush(
-  directory = ".",
-  options: Record<string, string | boolean> = {}
-) {
+async function runPush(directory = ".", options: Record<string, string | boolean> = {}) {
   const mergedOpts: Record<string, string | boolean> = { yes: true, ...options };
   const args = [directory];
   if (mergedOpts.yes) args.push("--yes");
@@ -170,7 +167,7 @@ beforeEach(() => {
   mockUploadToPresignedUrl.mockReset();
   mockCompletePublish.mockReset();
   mockListOrgs.mockReset();
-   
+
   exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
     throw new Error("process.exit");
   }) as never);
@@ -185,9 +182,7 @@ describe("push command", () => {
       await expect(runPush()).rejects.toThrow("process.exit");
 
       expect(exitSpy).toHaveBeenCalledWith(1);
-      expect(logger.error).toHaveBeenCalledWith(
-        "Not logged in. Run 'osk login' first."
-      );
+      expect(logger.error).toHaveBeenCalledWith("Not logged in. Run 'osk login' first.");
     });
   });
 
@@ -230,9 +225,7 @@ describe("push command", () => {
 
       await runPush();
 
-      expect(logger.dim).toHaveBeenCalledWith(
-        "my-skill@1.0.0 is already up to date"
-      );
+      expect(logger.dim).toHaveBeenCalledWith("my-skill@1.0.0 is already up to date");
       // Should NOT proceed to upload or complete
       expect(mockUploadToPresignedUrl).not.toHaveBeenCalled();
       expect(mockCompletePublish).not.toHaveBeenCalled();
@@ -248,9 +241,7 @@ describe("push command", () => {
       await expect(runPush()).rejects.toThrow("process.exit");
 
       expect(exitSpy).toHaveBeenCalledWith(1);
-      expect(logger.error).toHaveBeenCalledWith(
-        "Server response missing upload information"
-      );
+      expect(logger.error).toHaveBeenCalledWith("Server response missing upload information");
     });
   });
 
@@ -270,9 +261,7 @@ describe("push command", () => {
     it("exits with error when freshAuth returns null before completePublish", async () => {
       setupDefaults();
       // First call succeeds, second returns null (session expired)
-      mockGetValidAuth
-        .mockResolvedValueOnce(AUTH)
-        .mockResolvedValueOnce(null);
+      mockGetValidAuth.mockResolvedValueOnce(AUTH).mockResolvedValueOnce(null);
 
       await expect(runPush()).rejects.toThrow("process.exit");
 
@@ -306,10 +295,7 @@ describe("push command", () => {
 
       await runPush();
 
-      expect(mockDisplayFindings).toHaveBeenCalledWith(
-        findings,
-        "Security audit warnings:"
-      );
+      expect(mockDisplayFindings).toHaveBeenCalledWith(findings, "Security audit warnings:");
     });
   });
 

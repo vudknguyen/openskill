@@ -9,13 +9,16 @@ OpenSkill Marketplace extends the `osk` CLI into a full platform for discovering
 ## 1. Product Vision
 
 ### Problem Statement
+
 - Skill creators have no way to monetize their work
 - Users struggle to discover quality skills
 - No usage analytics or feedback loop for creators
 - Enterprise teams lack centralized skill management
 
 ### Solution
+
 A marketplace platform that:
+
 1. **Empowers creators** with publishing, analytics, and monetization
 2. **Serves users** with discovery, reviews, and seamless installation
 3. **Supports enterprises** with seat management and SSO
@@ -35,6 +38,7 @@ Creator Journey:
 ```
 
 **Key Actions:**
+
 - `osk login` - Authenticate as publisher
 - `osk publish` - Upload skill to marketplace
 - `osk stats <skill>` - View usage stats from CLI
@@ -51,6 +55,7 @@ Consumer Journey:
 ```
 
 **Key Actions:**
+
 - `osk search` / `osk browse` - Discover skills
 - `osk login` - Required for paid skills
 - `osk install <skill>` - License check + download
@@ -67,6 +72,7 @@ Admin Journey:
 ```
 
 **Key Actions:**
+
 - Web dashboard - Team/seat management
 - SSO/SAML configuration
 - Bulk license assignment
@@ -144,14 +150,14 @@ Admin Journey:
 
 ### 3.2 Service Responsibilities
 
-| Service | Responsibilities |
-|---------|------------------|
-| **Auth** | OAuth flows, SSO/SAML, JWT tokens, license validation |
-| **Catalog** | Skill CRUD, search/indexing, categories, reviews/ratings |
-| **Billing** | Stripe integration, subscriptions, seat licenses, payouts |
-| **Analytics** | Event ingestion, aggregation, reporting, dashboards |
-| **Storage** | Skill file hosting, obfuscation, versioning, CDN delivery |
-| **Team** | Organizations, seat management, role-based access |
+| Service       | Responsibilities                                          |
+| ------------- | --------------------------------------------------------- |
+| **Auth**      | OAuth flows, SSO/SAML, JWT tokens, license validation     |
+| **Catalog**   | Skill CRUD, search/indexing, categories, reviews/ratings  |
+| **Billing**   | Stripe integration, subscriptions, seat licenses, payouts |
+| **Analytics** | Event ingestion, aggregation, reporting, dashboards       |
+| **Storage**   | Skill file hosting, obfuscation, versioning, CDN delivery |
+| **Team**      | Organizations, seat management, role-based access         |
 
 ---
 
@@ -492,26 +498,26 @@ GET    /admin/publishers           # List verified publishers
 
 ### 6.1 New Commands
 
-| Command | Description |
-|---------|-------------|
-| `osk login` | Authenticate with GitHub/Google OAuth |
-| `osk logout` | Clear local credentials |
-| `osk whoami` | Show current user |
-| `osk publish` | Publish skill to marketplace |
-| `osk publish --update` | Publish new version |
-| `osk unpublish <skill>` | Remove from marketplace |
-| `osk subscribe <skill>` | Subscribe to paid skill |
-| `osk subscriptions` | List active subscriptions |
-| `osk stats <skill>` | View usage stats (creator) |
+| Command                 | Description                           |
+| ----------------------- | ------------------------------------- |
+| `osk login`             | Authenticate with GitHub/Google OAuth |
+| `osk logout`            | Clear local credentials               |
+| `osk whoami`            | Show current user                     |
+| `osk publish`           | Publish skill to marketplace          |
+| `osk publish --update`  | Publish new version                   |
+| `osk unpublish <skill>` | Remove from marketplace               |
+| `osk subscribe <skill>` | Subscribe to paid skill               |
+| `osk subscriptions`     | List active subscriptions             |
+| `osk stats <skill>`     | View usage stats (creator)            |
 
 ### 6.2 Modified Commands
 
-| Command | Changes |
-|---------|---------|
-| `osk install` | Add license check for paid skills |
-| `osk update` | Check subscription status before updating |
-| `osk search` | Search marketplace catalog |
-| `osk browse` | Browse marketplace categories |
+| Command       | Changes                                   |
+| ------------- | ----------------------------------------- |
+| `osk install` | Add license check for paid skills         |
+| `osk update`  | Check subscription status before updating |
+| `osk search`  | Search marketplace catalog                |
+| `osk browse`  | Browse marketplace categories             |
 
 ### 6.3 Authentication Flow (CLI)
 
@@ -642,8 +648,8 @@ type UsageEvent = {
   skill_id: string;
   skill_version: string;
   user_id: string;
-  event_type: 'install' | 'uninstall' | 'invoke' | 'error';
-  agent: 'claude' | 'codex' | 'cursor' | 'antigravity';
+  event_type: "install" | "uninstall" | "invoke" | "error";
+  agent: "claude" | "codex" | "cursor" | "antigravity";
   timestamp: string; // ISO 8601
   metadata: {
     // For 'invoke'
@@ -674,40 +680,40 @@ type UsageEvent = {
 
 ### 9.1 Backend
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| API | Node.js + Fastify | Fast, TypeScript, matches CLI |
-| Database | PostgreSQL | Reliable, JSONB for flexibility |
-| Cache | Redis | Sessions, rate limiting |
-| Storage | Cloudflare R2 | S3-compatible, global CDN |
-| Search | PostgreSQL FTS | MVP; Elasticsearch later |
-| Queue | BullMQ (Redis) | Background jobs (payouts, emails) |
+| Component | Technology        | Rationale                         |
+| --------- | ----------------- | --------------------------------- |
+| API       | Node.js + Fastify | Fast, TypeScript, matches CLI     |
+| Database  | PostgreSQL        | Reliable, JSONB for flexibility   |
+| Cache     | Redis             | Sessions, rate limiting           |
+| Storage   | Cloudflare R2     | S3-compatible, global CDN         |
+| Search    | PostgreSQL FTS    | MVP; Elasticsearch later          |
+| Queue     | BullMQ (Redis)    | Background jobs (payouts, emails) |
 
 ### 9.2 Frontend (Web)
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| Framework | Next.js | SSR for SEO, React ecosystem |
-| Styling | Tailwind CSS | Rapid development |
-| State | React Query | Server state management |
+| Component | Technology   | Rationale                    |
+| --------- | ------------ | ---------------------------- |
+| Framework | Next.js      | SSR for SEO, React ecosystem |
+| Styling   | Tailwind CSS | Rapid development            |
+| State     | React Query  | Server state management      |
 
 ### 9.3 Infrastructure
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| Hosting | Vercel (web) + Railway/Render (API) | Easy deployment |
-| CDN | Cloudflare | Global, integrated with R2 |
-| Monitoring | Sentry + Axiom | Errors + logs |
-| CI/CD | GitHub Actions | Already using GitHub |
+| Component  | Technology                          | Rationale                  |
+| ---------- | ----------------------------------- | -------------------------- |
+| Hosting    | Vercel (web) + Railway/Render (API) | Easy deployment            |
+| CDN        | Cloudflare                          | Global, integrated with R2 |
+| Monitoring | Sentry + Axiom                      | Errors + logs              |
+| CI/CD      | GitHub Actions                      | Already using GitHub       |
 
 ### 9.4 Third-Party Services
 
-| Service | Purpose |
-|---------|---------|
-| Stripe | Payments, subscriptions, Connect payouts |
-| Auth0 or WorkOS | SSO/SAML for enterprise |
-| SendGrid/Resend | Transactional emails |
-| Stripe Atlas | Business formation (if needed) |
+| Service         | Purpose                                  |
+| --------------- | ---------------------------------------- |
+| Stripe          | Payments, subscriptions, Connect payouts |
+| Auth0 or WorkOS | SSO/SAML for enterprise                  |
+| SendGrid/Resend | Transactional emails                     |
+| Stripe Atlas    | Business formation (if needed)           |
 
 ---
 
@@ -716,6 +722,7 @@ type UsageEvent = {
 ### 10.1 MVP Features (Phase 1)
 
 **Must Have:**
+
 - [ ] User authentication (GitHub OAuth)
 - [ ] Skill publishing via CLI (`osk publish`)
 - [ ] Skill catalog (web, basic search)
@@ -726,6 +733,7 @@ type UsageEvent = {
 - [ ] Stripe payments + payouts
 
 **Won't Have (Phase 1):**
+
 - Enterprise SSO/SAML
 - Seat-based licensing
 - Reviews/ratings
@@ -837,43 +845,43 @@ Enterprise (10 seats):
 
 ### 13.1 Platform Health
 
-| Metric | Target (Year 1) |
-|--------|-----------------|
-| Registered users | 10,000 |
-| Active creators | 100 |
-| Published skills | 500 |
-| Paid subscriptions | 1,000 |
-| Monthly revenue | $10,000 |
+| Metric             | Target (Year 1) |
+| ------------------ | --------------- |
+| Registered users   | 10,000          |
+| Active creators    | 100             |
+| Published skills   | 500             |
+| Paid subscriptions | 1,000           |
+| Monthly revenue    | $10,000         |
 
 ### 13.2 Creator Success
 
-| Metric | Target |
-|--------|--------|
-| Avg. earnings per creator | $100/month |
-| Top creator earnings | $1,000/month |
-| Creator retention (12 mo) | 60% |
+| Metric                    | Target       |
+| ------------------------- | ------------ |
+| Avg. earnings per creator | $100/month   |
+| Top creator earnings      | $1,000/month |
+| Creator retention (12 mo) | 60%          |
 
 ### 13.3 User Satisfaction
 
-| Metric | Target |
-|--------|--------|
-| Skill install success rate | 99% |
-| Average skill rating | 4.0+ |
-| Support ticket volume | < 50/month |
+| Metric                     | Target     |
+| -------------------------- | ---------- |
+| Skill install success rate | 99%        |
+| Average skill rating       | 4.0+       |
+| Support ticket volume      | < 50/month |
 
 ---
 
 ## 14. Decisions Made
 
-| Question | Decision |
-|----------|----------|
-| Revenue share | 80% creator / 20% platform |
-| Free trials | No - skills are either free or paid |
-| Refund policy | Prorated subscriptions |
-| Affiliate program | Yes - flat 5% commission (tiered support planned) |
+| Question           | Decision                                          |
+| ------------------ | ------------------------------------------------- |
+| Revenue share      | 80% creator / 20% platform                        |
+| Free trials        | No - skills are either free or paid               |
+| Refund policy      | Prorated subscriptions                            |
+| Affiliate program  | Yes - flat 5% commission (tiered support planned) |
 | Skill verification | Yes - badge system for verified publishers/skills |
-| Public API | Not for MVP - future consideration |
-| Skill bundles | Future consideration |
+| Public API         | Not for MVP - future consideration                |
+| Skill bundles      | Future consideration                              |
 
 ## 15. Future Considerations
 
@@ -894,5 +902,5 @@ Enterprise (10 seats):
 
 ---
 
-*Document Version: 1.0*
-*Created: 2026-01-19*
+_Document Version: 1.0_
+_Created: 2026-01-19_

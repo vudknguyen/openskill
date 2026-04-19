@@ -10,7 +10,11 @@ export function validateServerUrl(url: string): string {
       throw new Error(`Unsupported protocol: ${parsed.protocol}`);
     }
     // Warn when using HTTP for non-localhost URLs
-    if (parsed.protocol === "http:" && parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
+    if (
+      parsed.protocol === "http:" &&
+      parsed.hostname !== "localhost" &&
+      parsed.hostname !== "127.0.0.1"
+    ) {
       console.warn(`Warning: Using insecure HTTP for ${parsed.hostname}. Consider using HTTPS.`);
     }
     return parsed.origin;

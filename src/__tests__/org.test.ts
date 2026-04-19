@@ -113,11 +113,9 @@ describe("org command", () => {
 
       expect(mockCreateOrg).toHaveBeenCalledWith(
         { name: "My Team", slug: "my-team", description: undefined },
-        "tok-123",
+        "tok-123"
       );
-      expect(mockSpinnerStop).toHaveBeenCalledWith(
-        expect.stringContaining("my-team"),
-      );
+      expect(mockSpinnerStop).toHaveBeenCalledWith(expect.stringContaining("my-team"));
     });
 
     it("uses provided --slug option", async () => {
@@ -128,7 +126,7 @@ describe("org command", () => {
 
       expect(mockCreateOrg).toHaveBeenCalledWith(
         expect.objectContaining({ slug: "custom-slug" }),
-        "tok-123",
+        "tok-123"
       );
     });
 
@@ -137,9 +135,7 @@ describe("org command", () => {
 
       await run("create", "My Team");
 
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        expect.stringContaining("Not logged in"),
-      );
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Not logged in"));
       expect(process.exitCode).toBe(1);
       expect(mockCreateOrg).not.toHaveBeenCalled();
     });
@@ -151,8 +147,24 @@ describe("org command", () => {
     it("lists organizations", async () => {
       mockGetValidAuth.mockResolvedValue(AUTH);
       mockListOrgs.mockResolvedValue([
-        { id: "o1", name: "Acme", slug: "acme", role: "admin", plan: "pro", seatLimit: 10, requireAuditPass: false },
-        { id: "o2", name: "Beta", slug: "beta", role: "member", plan: "free", seatLimit: 5, requireAuditPass: true },
+        {
+          id: "o1",
+          name: "Acme",
+          slug: "acme",
+          role: "admin",
+          plan: "pro",
+          seatLimit: 10,
+          requireAuditPass: false,
+        },
+        {
+          id: "o2",
+          name: "Beta",
+          slug: "beta",
+          role: "member",
+          plan: "free",
+          seatLimit: 5,
+          requireAuditPass: true,
+        },
       ]);
 
       await run("ls");
@@ -169,9 +181,7 @@ describe("org command", () => {
       await run("ls");
 
       expect(mockSpinnerStop).toHaveBeenCalledWith("0 organization(s)");
-      expect(mockLoggerDim).toHaveBeenCalledWith(
-        expect.stringContaining("No organizations yet"),
-      );
+      expect(mockLoggerDim).toHaveBeenCalledWith(expect.stringContaining("No organizations yet"));
     });
   });
 
@@ -180,9 +190,7 @@ describe("org command", () => {
   describe("members", () => {
     it("resolves org slug and lists members", async () => {
       mockGetValidAuth.mockResolvedValue(AUTH);
-      mockListOrgs.mockResolvedValue([
-        { id: "o1", slug: "acme" },
-      ]);
+      mockListOrgs.mockResolvedValue([{ id: "o1", slug: "acme" }]);
       mockGetOrgMembers.mockResolvedValue([
         { userName: "Alice", userEmail: "alice@acme.com", role: "admin" },
         { userName: "Bob", userEmail: "bob@acme.com", role: "member" },
@@ -193,9 +201,7 @@ describe("org command", () => {
       expect(mockListOrgs).toHaveBeenCalledWith("tok-123");
       expect(mockGetOrgMembers).toHaveBeenCalledWith("o1", "tok-123");
       expect(mockSpinnerStop).toHaveBeenCalledWith("2 member(s)");
-      expect(mockLoggerLog).toHaveBeenCalledWith(
-        expect.stringContaining("Alice"),
-      );
+      expect(mockLoggerLog).toHaveBeenCalledWith(expect.stringContaining("Alice"));
     });
   });
 
@@ -209,17 +215,10 @@ describe("org command", () => {
 
       await run("invite", "acme", "new@acme.com");
 
-      expect(mockInviteOrgMember).toHaveBeenCalledWith(
-        "o1",
-        "new@acme.com",
-        "member",
-        "tok-123",
-      );
-      expect(mockSpinnerStop).toHaveBeenCalledWith(
-        expect.stringContaining("new@acme.com"),
-      );
+      expect(mockInviteOrgMember).toHaveBeenCalledWith("o1", "new@acme.com", "member", "tok-123");
+      expect(mockSpinnerStop).toHaveBeenCalledWith(expect.stringContaining("new@acme.com"));
       expect(mockLoggerLog).toHaveBeenCalledWith(
-        expect.stringContaining("http://localhost:3000/org/invite/inv-token-abc"),
+        expect.stringContaining("http://localhost:3000/org/invite/inv-token-abc")
       );
     });
   });
@@ -233,20 +232,34 @@ describe("org command", () => {
       mockGetOrgSkills.mockResolvedValue({
         organization: { name: "Acme", requireAuditPass: true },
         skills: [
-          { skillName: "Deploy", skillSlug: "deploy", skillDescription: "Deploy tool for CI", skillAuditStatus: "pass", skillId: "s1" },
-          { skillName: "Risky", skillSlug: "risky", skillDescription: "Does risky things", skillAuditStatus: "fail", skillId: "s2" },
-          { skillName: "Unknown", skillSlug: "unknown", skillDescription: "Not audited yet", skillAuditStatus: "pending", skillId: "s3" },
+          {
+            skillName: "Deploy",
+            skillSlug: "deploy",
+            skillDescription: "Deploy tool for CI",
+            skillAuditStatus: "pass",
+            skillId: "s1",
+          },
+          {
+            skillName: "Risky",
+            skillSlug: "risky",
+            skillDescription: "Does risky things",
+            skillAuditStatus: "fail",
+            skillId: "s2",
+          },
+          {
+            skillName: "Unknown",
+            skillSlug: "unknown",
+            skillDescription: "Not audited yet",
+            skillAuditStatus: "pending",
+            skillId: "s3",
+          },
         ],
       });
 
       await run("skills", "acme");
 
-      expect(mockSpinnerStop).toHaveBeenCalledWith(
-        expect.stringContaining("3 skill(s)"),
-      );
-      expect(mockLoggerDim).toHaveBeenCalledWith(
-        expect.stringContaining("Audit policy"),
-      );
+      expect(mockSpinnerStop).toHaveBeenCalledWith(expect.stringContaining("3 skill(s)"));
+      expect(mockLoggerDim).toHaveBeenCalledWith(expect.stringContaining("Audit policy"));
       // Check audit badges in output
       const logCalls = mockLoggerLog.mock.calls.map((c: unknown[]) => String(c[0]));
       expect(logCalls.some((s) => s.includes("\u2713") && s.includes("Deploy"))).toBe(true);
@@ -264,12 +277,8 @@ describe("org command", () => {
 
       await run("skills", "acme");
 
-      expect(mockSpinnerStop).toHaveBeenCalledWith(
-        expect.stringContaining("0 skill(s)"),
-      );
-      expect(mockLoggerDim).toHaveBeenCalledWith(
-        expect.stringContaining("No skills in registry"),
-      );
+      expect(mockSpinnerStop).toHaveBeenCalledWith(expect.stringContaining("0 skill(s)"));
+      expect(mockLoggerDim).toHaveBeenCalledWith(expect.stringContaining("No skills in registry"));
     });
   });
 
@@ -284,9 +293,7 @@ describe("org command", () => {
       await run("add-skill", "acme", "deploy-tool");
 
       expect(mockAddSkillToOrg).toHaveBeenCalledWith("o1", "deploy-tool", "tok-123");
-      expect(mockSpinnerStop).toHaveBeenCalledWith(
-        expect.stringContaining("deploy-tool"),
-      );
+      expect(mockSpinnerStop).toHaveBeenCalledWith(expect.stringContaining("deploy-tool"));
     });
   });
 
@@ -308,9 +315,7 @@ describe("org command", () => {
       await run("rm-skill", "acme", "deploy-tool");
 
       expect(mockRemoveSkillFromOrg).toHaveBeenCalledWith("o1", "s1", "tok-123");
-      expect(mockSpinnerStop).toHaveBeenCalledWith(
-        expect.stringContaining("deploy-tool"),
-      );
+      expect(mockSpinnerStop).toHaveBeenCalledWith(expect.stringContaining("deploy-tool"));
     });
 
     it("handles skill not found in registry", async () => {
@@ -323,9 +328,7 @@ describe("org command", () => {
 
       await run("rm-skill", "acme", "nonexistent");
 
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        expect.stringContaining("nonexistent"),
-      );
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("nonexistent"));
       expect(process.exitCode).toBe(1);
       expect(mockRemoveSkillFromOrg).not.toHaveBeenCalled();
     });
@@ -346,12 +349,8 @@ describe("org command", () => {
       // Use members subcommand to trigger resolveOrgId with a non-existent org
       await expect(run("members", "nonexistent")).rejects.toThrow("process.exit");
 
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        expect.stringContaining("nonexistent"),
-      );
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        expect.stringContaining("osk org ls"),
-      );
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("nonexistent"));
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("osk org ls"));
       expect(exitSpy).toHaveBeenCalledWith(1);
     });
   });

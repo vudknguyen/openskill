@@ -61,7 +61,12 @@ describe("checkMarketplaceUpdates", () => {
     mockGetSkillVersions.mockResolvedValue({
       versions: [
         { version: "1.0.0", fileHash: "oldhash123", changelog: null, isLatest: false },
-        { version: "2.0.0", fileHash: "newhash456", changelog: "Bug fixes and improvements", isLatest: true },
+        {
+          version: "2.0.0",
+          fileHash: "newhash456",
+          changelog: "Bug fixes and improvements",
+          isLatest: true,
+        },
       ],
     });
 
@@ -177,13 +182,19 @@ describe("checkMarketplaceUpdates", () => {
 
     mockGetSkillVersions
       .mockResolvedValueOnce({
-        versions: [{ version: "2.0.0", fileHash: "hash1-new", changelog: "Updated", isLatest: true }],
+        versions: [
+          { version: "2.0.0", fileHash: "hash1-new", changelog: "Updated", isLatest: true },
+        ],
       })
       .mockResolvedValueOnce({
-        versions: [{ version: "2.0.0", fileHash: "hash2-current", changelog: null, isLatest: true }],
+        versions: [
+          { version: "2.0.0", fileHash: "hash2-current", changelog: null, isLatest: true },
+        ],
       })
       .mockResolvedValueOnce({
-        versions: [{ version: "3.0.0", fileHash: "hash3-new", changelog: "Major update", isLatest: true }],
+        versions: [
+          { version: "3.0.0", fileHash: "hash3-new", changelog: "Major update", isLatest: true },
+        ],
       });
 
     const updates = await checkMarketplaceUpdates([skill1, skill2, skill3]);

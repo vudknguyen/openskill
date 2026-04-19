@@ -103,9 +103,7 @@ Examples:
             scope,
           });
         } catch (err) {
-          logger.error(
-            err instanceof Error ? err.message : String(err)
-          );
+          logger.error(err instanceof Error ? err.message : String(err));
           process.exit(1);
         }
         return;
@@ -486,7 +484,7 @@ export async function interactiveInstallFromMixed(
     repoFullName: string | null;
     stars: number | null;
     auditStatus?: "pass" | "warning" | "fail" | "unscanned" | null;
-  }> = [],
+  }> = []
 ): Promise<void> {
   const { truncate } = await import("../utils/fs.js");
   const { selectScope } = await import("../utils/prompt.js");
@@ -495,7 +493,11 @@ export async function interactiveInstallFromMixed(
   type MarketChoice = { source: "marketplace"; skill: (typeof marketplaceSkills)[number] };
   type GitHubChoice = { source: "github"; skill: (typeof githubSkills)[number] };
 
-  const choices: Array<{ name: string; hint: string; value: RepoChoice | MarketChoice | GitHubChoice }> = [];
+  const choices: Array<{
+    name: string;
+    hint: string;
+    value: RepoChoice | MarketChoice | GitHubChoice;
+  }> = [];
 
   for (const s of marketplaceSkills) {
     choices.push({
@@ -526,7 +528,7 @@ export async function interactiveInstallFromMixed(
   const selected = await autocomplete(
     "Select skill(s) to install (space to select, enter to confirm):",
     choices,
-    { multiple: true },
+    { multiple: true }
   );
 
   if (selected && selected.length > 0) {
@@ -589,7 +591,8 @@ async function installByName(
 ): Promise<void> {
   logger.info(`Searching for skill: ${name}...`);
 
-  const { discoverSkills: discoverMarketplaceSkills } = await import("../core/marketplace-search.js");
+  const { discoverSkills: discoverMarketplaceSkills } =
+    await import("../core/marketplace-search.js");
 
   // Search local repos and marketplace in parallel
   const [repoResults, discoveredResults] = await Promise.all([
@@ -610,7 +613,8 @@ async function installByName(
 
   // Exact match in marketplace — install directly
   const exactMarketplace = marketplaceResults.find(
-    (s) => s.slug.toLowerCase() === name.toLowerCase() || s.name.toLowerCase() === name.toLowerCase()
+    (s) =>
+      s.slug.toLowerCase() === name.toLowerCase() || s.name.toLowerCase() === name.toLowerCase()
   );
   if (exactMarketplace) {
     await installFromMarketplace(exactMarketplace.slug, {
@@ -629,7 +633,8 @@ async function installByName(
 
   // Exact match in GitHub discovered
   const exactGithub = githubResults.find(
-    (s) => s.slug.toLowerCase() === name.toLowerCase() || s.name.toLowerCase() === name.toLowerCase()
+    (s) =>
+      s.slug.toLowerCase() === name.toLowerCase() || s.name.toLowerCase() === name.toLowerCase()
   );
   if (exactGithub && exactGithub.repoFullName) {
     const [owner, repo] = exactGithub.repoFullName.split("/");
@@ -646,7 +651,12 @@ async function installByName(
         scope: options.scope,
       });
     } else if (repoResults.length > 0) {
-      await installFromGitHub(repoResults[0].repoOwner, repoResults[0].repoName, repoResults[0].skillPath, options);
+      await installFromGitHub(
+        repoResults[0].repoOwner,
+        repoResults[0].repoName,
+        repoResults[0].skillPath,
+        options
+      );
     } else if (githubResults.length > 0 && githubResults[0].repoFullName) {
       const [owner, repo] = githubResults[0].repoFullName.split("/");
       await installFromGitHub(owner, repo, undefined, options);
@@ -664,7 +674,7 @@ async function installByName(
 async function installFromOrgRegistry(
   skillSlug: string,
   orgSlugOrId: string,
-  options: { agent?: string; version?: string; scope: InstallScope },
+  options: { agent?: string; version?: string; scope: InstallScope }
 ) {
   const auth = await getValidAuth();
   if (!auth) {
@@ -679,7 +689,9 @@ async function installFromOrgRegistry(
   const org = orgs.find((o) => o.slug === orgSlugOrId || o.id === orgSlugOrId);
   if (!org) {
     spinner.stop("Organization not found");
-    throw new Error(`Organization "${orgSlugOrId}" not found. Run 'osk org ls' to see your organizations.`);
+    throw new Error(
+      `Organization "${orgSlugOrId}" not found. Run 'osk org ls' to see your organizations.`
+    );
   }
 
   // Check if skill is in org registry
@@ -698,7 +710,7 @@ async function installFromOrgRegistry(
     spinner.stop("Blocked by audit policy");
     throw new Error(
       `Skill "${skillSlug}" has audit status "${orgSkill.skillAuditStatus}". ` +
-      `Organization policy requires skills to pass audit. Contact your org admin.`
+        `Organization policy requires skills to pass audit. Contact your org admin.`
     );
   }
 

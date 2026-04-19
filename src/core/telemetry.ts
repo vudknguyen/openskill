@@ -175,9 +175,7 @@ export class TelemetryClient {
 
     // Generate new anonymous client ID using only random bytes
     const randomData = randomBytes(32);
-    const hash = createHash("sha256")
-      .update(randomData)
-      .digest("hex");
+    const hash = createHash("sha256").update(randomData).digest("hex");
 
     try {
       // Write with secure permissions (owner read/write only)
@@ -273,7 +271,9 @@ export class TelemetryClient {
   /**
    * Sanitize and limit metadata size.
    */
-  private sanitizeMetadata(metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  private sanitizeMetadata(
+    metadata: Record<string, unknown> | undefined
+  ): Record<string, unknown> | undefined {
     if (!metadata) return undefined;
     const str = JSON.stringify(metadata);
     if (str.length > MAX_METADATA_SIZE) {
@@ -451,7 +451,11 @@ export class TelemetryClient {
 /**
  * Track a skill installation.
  */
-export function trackInstall(skillSlug: string, skillVersion?: string, metadata?: Record<string, unknown>): void {
+export function trackInstall(
+  skillSlug: string,
+  skillVersion?: string,
+  metadata?: Record<string, unknown>
+): void {
   getTelemetry().trackInstall(skillSlug, skillVersion, metadata);
 }
 

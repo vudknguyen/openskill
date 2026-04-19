@@ -92,9 +92,7 @@ describe("searchMarketplace", () => {
   it("propagates errors from client.searchSkills", async () => {
     mockSearchSkills.mockRejectedValue(new Error("Marketplace search failed (500)"));
 
-    await expect(searchMarketplace("query")).rejects.toThrow(
-      "Marketplace search failed (500)",
-    );
+    await expect(searchMarketplace("query")).rejects.toThrow("Marketplace search failed (500)");
   });
 
   it("returns empty array when no skills match", async () => {

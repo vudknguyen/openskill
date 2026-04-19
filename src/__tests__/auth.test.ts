@@ -162,15 +162,11 @@ describe("saveAuth", () => {
 
     saveAuth(authData);
 
-    expect(mockedWriteFileSync).toHaveBeenCalledWith(
-      `${AUTH_PATH}.tmp`,
-      expect.any(String),
-      { encoding: "utf-8", mode: 0o600 },
-    );
-    expect(mockedRenameSync).toHaveBeenCalledWith(
-      `${AUTH_PATH}.tmp`,
-      AUTH_PATH,
-    );
+    expect(mockedWriteFileSync).toHaveBeenCalledWith(`${AUTH_PATH}.tmp`, expect.any(String), {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
+    expect(mockedRenameSync).toHaveBeenCalledWith(`${AUTH_PATH}.tmp`, AUTH_PATH);
   });
 
   it("writes formatted JSON with 2-space indent", () => {

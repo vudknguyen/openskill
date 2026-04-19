@@ -134,7 +134,9 @@ describe("parseGitUrl", () => {
     });
 
     it("parses github:owner/repo/path", () => {
-      const result = parseGitUrl("github:ComposioHQ/awesome-claude-skills/composio-skills/ip2location-io-automation");
+      const result = parseGitUrl(
+        "github:ComposioHQ/awesome-claude-skills/composio-skills/ip2location-io-automation"
+      );
       expect(result).toEqual({
         host: "github.com",
         owner: "ComposioHQ",

@@ -20,7 +20,7 @@ export async function checkMarketplaceUpdates(
   options?: {
     server?: string;
     onProgress?: (checked: number, total: number) => void;
-  },
+  }
 ): Promise<MarketplaceUpdate[]> {
   const client: MarketplaceClient = createMarketplaceClient(options?.server);
   const updates: MarketplaceUpdate[] = [];

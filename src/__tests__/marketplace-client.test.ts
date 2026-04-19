@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  MarketplaceClient,
-  MarketplaceApiError,
-} from "../core/marketplace-client.js";
+import { MarketplaceClient, MarketplaceApiError } from "../core/marketplace-client.js";
 import { mockFetch } from "./helpers/mock-fetch.js";
 
 const SERVER = "https://marketplace.example.com";
@@ -35,7 +32,7 @@ describe("MarketplaceClient", () => {
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({ client_info: "osk/0.1.0 darwin" }),
-        }),
+        })
       );
     });
 
@@ -77,7 +74,11 @@ describe("MarketplaceClient", () => {
     });
 
     it("throws MarketplaceApiError on server 500 response", async () => {
-      mockFetch({ ok: false, status: 500, json: () => Promise.reject(new SyntaxError("Unexpected token <")) });
+      mockFetch({
+        ok: false,
+        status: 500,
+        json: () => Promise.reject(new SyntaxError("Unexpected token <")),
+      });
       const client = new MarketplaceClient(SERVER);
 
       await expect(client.pollDeviceToken("dc-123")).rejects.toThrow(MarketplaceApiError);
@@ -100,7 +101,7 @@ describe("MarketplaceClient", () => {
         `${SERVER}/api/auth/me`,
         expect.objectContaining({
           headers: expect.objectContaining({ Authorization: "Bearer my-token" }),
-        }),
+        })
       );
     });
 
@@ -109,7 +110,7 @@ describe("MarketplaceClient", () => {
       const client = new MarketplaceClient(SERVER);
 
       await expect(client.fetchCurrentUser("bad-token")).rejects.toThrow(
-        "Failed to fetch user (401)",
+        "Failed to fetch user (401)"
       );
     });
   });
@@ -135,7 +136,7 @@ describe("MarketplaceClient", () => {
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({ refresh_token: "old-rt" }),
-        }),
+        })
       );
     });
 
@@ -163,7 +164,7 @@ describe("MarketplaceClient", () => {
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({ refresh_token: "rt-to-revoke" }),
-        }),
+        })
       );
     });
 
@@ -209,9 +210,7 @@ describe("MarketplaceClient", () => {
       mockFetch({ ok: false, status: 500 });
       const client = new MarketplaceClient(SERVER);
 
-      await expect(client.searchSkills("q")).rejects.toThrow(
-        "Marketplace search failed (500)",
-      );
+      await expect(client.searchSkills("q")).rejects.toThrow("Marketplace search failed (500)");
     });
   });
 
@@ -238,7 +237,8 @@ describe("MarketplaceClient", () => {
 
     it("appends version query param when provided", async () => {
       const fetcher = mockFetch({
-        json: () => Promise.resolve({ downloadUrl: "", version: "2.0.0", fileHash: null, fileSize: null }),
+        json: () =>
+          Promise.resolve({ downloadUrl: "", version: "2.0.0", fileHash: null, fileSize: null }),
       });
       const client = new MarketplaceClient(SERVER);
 
@@ -293,7 +293,7 @@ describe("MarketplaceClient", () => {
       const client = new MarketplaceClient(SERVER);
 
       await expect(client.getSkillVersions("nope")).rejects.toThrow(
-        "Failed to fetch versions (404)",
+        "Failed to fetch versions (404)"
       );
     });
   });
@@ -315,7 +315,7 @@ describe("MarketplaceClient", () => {
           method: "PATCH",
           headers: expect.objectContaining({ Authorization: "Bearer tok" }),
           body: JSON.stringify({ status: "published" }),
-        }),
+        })
       );
     });
 
@@ -327,9 +327,9 @@ describe("MarketplaceClient", () => {
       });
       const client = new MarketplaceClient(SERVER);
 
-      await expect(
-        client.updateSkillStatus("tok", "slug", "published"),
-      ).rejects.toThrow("Not authorized");
+      await expect(client.updateSkillStatus("tok", "slug", "published")).rejects.toThrow(
+        "Not authorized"
+      );
     });
   });
 
@@ -353,7 +353,7 @@ describe("MarketplaceClient", () => {
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({ Authorization: "Bearer tok" }),
-        }),
+        })
       );
     });
 
@@ -366,7 +366,7 @@ describe("MarketplaceClient", () => {
       const client = new MarketplaceClient(SERVER);
 
       await expect(
-        client.initPublish("tok", { slug: "s", fileHash: "h", fileSize: 0 }),
+        client.initPublish("tok", { slug: "s", fileHash: "h", fileSize: 0 })
       ).rejects.toThrow("Duplicate");
     });
   });
@@ -391,7 +391,7 @@ describe("MarketplaceClient", () => {
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({ Authorization: "Bearer tok" }),
-        }),
+        })
       );
     });
 
@@ -441,7 +441,7 @@ describe("MarketplaceClient", () => {
             "Content-Length": "4",
           }),
           body: buf,
-        }),
+        })
       );
     });
 
@@ -450,7 +450,7 @@ describe("MarketplaceClient", () => {
       const client = new MarketplaceClient(SERVER);
 
       await expect(
-        client.uploadToPresignedUrl("https://s3.example.com/upload", Buffer.from("")),
+        client.uploadToPresignedUrl("https://s3.example.com/upload", Buffer.from(""))
       ).rejects.toThrow("Upload failed (403)");
     });
   });
@@ -477,7 +477,7 @@ describe("MarketplaceClient", () => {
       const client = new MarketplaceClient(SERVER);
 
       await expect(
-        client.downloadFromPresignedUrl("https://cdn.example.com/missing"),
+        client.downloadFromPresignedUrl("https://cdn.example.com/missing")
       ).rejects.toThrow("Download failed (404)");
     });
   });

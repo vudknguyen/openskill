@@ -81,7 +81,9 @@ configCommand
           }
         } else {
           logger.error(`Invalid config key: ${key}`);
-          logger.dim("Available keys: defaultAgent, defaultScope, serverUrl, telemetry, repos, agents.<name>");
+          logger.dim(
+            "Available keys: defaultAgent, defaultScope, serverUrl, telemetry, repos, agents.<name>"
+          );
           process.exit(1);
         }
     }
@@ -155,7 +157,9 @@ configCommand
           logger.success(`Set ${key} to ${value}`);
         } else {
           logger.error(`Invalid or read-only config key: ${key}`);
-          logger.dim("Writable keys: defaultAgent, defaultScope, serverUrl, telemetry, agents.<name>.skillPath");
+          logger.dim(
+            "Writable keys: defaultAgent, defaultScope, serverUrl, telemetry, agents.<name>.skillPath"
+          );
           process.exit(1);
         }
     }

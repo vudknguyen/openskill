@@ -7,7 +7,11 @@ import {
   InstallScope,
   InstalledSkill,
 } from "../agents/index.js";
-import { getAllInstalledSkills, getSkillRecord, type InstalledSkillRecord } from "../core/manifest.js";
+import {
+  getAllInstalledSkills,
+  getSkillRecord,
+  type InstalledSkillRecord,
+} from "../core/manifest.js";
 import { getScopeLabel } from "../utils/fs.js";
 import { logger } from "../utils/logger.js";
 

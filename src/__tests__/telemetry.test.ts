@@ -390,9 +390,7 @@ describe("TelemetryClient", () => {
     it("limits queue size when loading from disk", () => {
       const manyEvents = Array(50).fill({ eventType: "cli_start" });
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        JSON.stringify({ events: manyEvents, lastFlushTime: 0 })
-      );
+      mockReadFileSync.mockReturnValue(JSON.stringify({ events: manyEvents, lastFlushTime: 0 }));
 
       const client = new TelemetryClient();
       // Queue should be limited to maxQueueSize (20)
