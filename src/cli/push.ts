@@ -1,0 +1,267 @@
+import { Command } from "commander";
+import { resolve, join } from "path";
+import { existsSync, readFileSync } from "fs";
+import { getValidAuth } from "../core/token-refresh.js";
+import { packageSkill, calculateHash, formatFileSize } from "../core/package.js";
+import { parseSkillMd } from "../utils/markdown.js";
+import { logger, createSpinner } from "../utils/logger.js";
+import { confirm } from "../utils/prompt.js";
+import { validateServerUrl } from "../utils/url.js";
+import { displayFindings } from "../utils/audit-display.js";
+import {
+  createMarketplaceClient,
+  MarketplaceApiError,
+  type PushInitResponse,
+  type AuditFinding,
+} from "../core/marketplace-client.js";
+
+export const pushCommand = new Command("push")
+  .description("Push a skill version to the OpenSkill marketplace (as draft)")
+  .argument("[directory]", "Skill directory (default: current directory)", ".")
+  .option("--short-desc <text>", "Short description (300 chars max)")
+  .option("--tags <tags>", "Comma-separated tags (overrides SKILL.md metadata.tags)")
+  .option("--changelog <text>", "Version changelog")
+  .option("-y, --yes", "Skip confirmation prompt")
+  .option("-s, --server <url>", "Server URL override")
+  .option("--org <org>", "Push to an organization's private registry")
+  .option("--visibility <visibility>", "Skill visibility: public or private", "public")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ osk push                                  # Push current directory
+  $ osk push ./my-skill                       # Push specific directory
+  $ osk push . --tags "pdf,reader" -y         # With tags, skip confirm
+  $ osk push . --changelog "Fixed edge case"  # With changelog
+  $ osk push . --org my-team --visibility private  # Push as org-private skill
+`
+  )
+  .action(
+    async (
+      directory: string,
+      options: {
+        shortDesc?: string;
+        tags?: string;
+        changelog?: string;
+        yes?: boolean;
+        server?: string;
+        org?: string;
+        visibility?: string;
+      }
+    ) => {
+      // 1. Check auth (auto-refreshes access token if expired)
+      const auth = await getValidAuth();
+      if (!auth) {
+        logger.error("Not logged in. Run 'osk login' first.");
+        process.exit(1);
+      }
+
+      const serverUrl = validateServerUrl(options.server || auth.serverUrl);
+
+      // 1b. Resolve org: explicit --org flag or defaultOrg from config
+      let organizationId: string | undefined;
+      const visibility = options.visibility === "private" ? "private" : "public";
+
+      const orgSlug = options.org || (await import("../core/config.js")).loadConfig().defaultOrg;
+      if (orgSlug) {
+        const { createMarketplaceClient } = await import("../core/marketplace-client.js");
+        const client = createMarketplaceClient(serverUrl);
+        const orgs = await client.listOrgs(auth.accessToken);
+        const org = orgs.find((o) => o.slug === orgSlug || o.id === orgSlug);
+        if (!org) {
+          logger.error(`Organization "${orgSlug}" not found. Run 'osk org ls' to see your organizations.`);
+          process.exit(1);
+        }
+        organizationId = org.id;
+      }
+
+      if (visibility === "private" && !organizationId) {
+        // Private without org = personal private skill (author-only)
+        logger.dim("Publishing as private skill (only you can see it).");
+      }
+
+      // 2. Resolve skill directory
+      const skillDir = resolve(directory);
+      const skillMdPath = join(skillDir, "SKILL.md");
+
+      if (!existsSync(skillMdPath)) {
+        logger.error(`No SKILL.md found in ${skillDir}`);
+        logger.dim("Create a SKILL.md file or specify a valid skill directory.");
+        process.exit(1);
+      }
+
+      // 3. Parse SKILL.md locally
+      let skillMd;
+      try {
+        const content = readFileSync(skillMdPath, "utf-8");
+        skillMd = parseSkillMd(content);
+      } catch (err) {
+        logger.error(
+          `Invalid SKILL.md: ${err instanceof Error ? err.message : String(err)}`
+        );
+        process.exit(1);
+      }
+
+      const slug = skillMd.frontmatter.name;
+      const version =
+        skillMd.frontmatter.metadata?.version || "(auto from hash)";
+
+      // Get tags from CLI option, SKILL.md frontmatter.tags, or metadata.tags
+      const tags = options.tags || skillMd.frontmatter.tags || skillMd.frontmatter.metadata?.tags;
+
+      // 4. Package directory
+      const packSpinner = createSpinner("Packaging skill...");
+      let buffer: Buffer;
+      try {
+        buffer = await packageSkill(skillDir);
+        packSpinner.stop("Packaged");
+      } catch (err) {
+        packSpinner.stop();
+        logger.error(
+          `Packaging failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+        process.exit(1);
+      }
+
+      // 5. Calculate hash
+      const fileHash = calculateHash(buffer);
+
+      // 6. Show summary
+      logger.newline();
+      logger.log(`  Name:     ${slug}`);
+      logger.log(`  Version:  ${version}`);
+      logger.log(`  Size:     ${formatFileSize(buffer.length)}`);
+      logger.log(`  Hash:     ${fileHash.slice(0, 16)}...`);
+      logger.newline();
+
+      // 7. Confirm
+      if (!options.yes) {
+        const proceed = await confirm("Push this skill?", true);
+        if (!proceed) {
+          logger.cancelled();
+          return;
+        }
+      }
+
+      const client = createMarketplaceClient(serverUrl);
+
+      // 8. POST /api/skills/publish/init
+      const initSpinner = createSpinner("Initializing...");
+      let initResult: PushInitResponse;
+      try {
+        initResult = await client.initPublish(auth.accessToken, {
+          slug,
+          fileHash,
+          fileSize: buffer.length,
+          shortDescription: options.shortDesc,
+          tags,
+          pricingType: "free",
+          changelog: options.changelog,
+          organizationId,
+          visibility,
+        });
+
+        if (initResult.unchanged) {
+          initSpinner.stop("No changes");
+          logger.newline();
+          logger.dim(`${initResult.name}@${initResult.version} is already up to date`);
+          return;
+        }
+
+        if (!initResult.uploadUrl || !initResult.uploadKey) {
+          initSpinner.stop();
+          logger.error("Server response missing upload information");
+          process.exit(1);
+        }
+        initSpinner.stop("Initialized");
+      } catch (err) {
+        initSpinner.stop();
+        if (err instanceof MarketplaceApiError) {
+          logger.error(err.message);
+        } else {
+          logger.error(
+            `Failed to connect to server: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+        process.exit(1);
+      }
+
+      // 9. PUT to presigned S3 URL
+      const uploadSpinner = createSpinner("Uploading package...");
+      try {
+        await client.uploadToPresignedUrl(initResult.uploadUrl!, buffer);
+        uploadSpinner.stop("Uploaded");
+      } catch (err) {
+        uploadSpinner.stop();
+        logger.error(
+          `Upload failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+        process.exit(1);
+      }
+
+      // 10. POST /api/skills/publish/complete — re-auth in case token expired during upload
+      const freshAuth = await getValidAuth();
+      if (!freshAuth) {
+        logger.error("Session expired during upload. Run 'osk login' and try again.");
+        process.exit(1);
+      }
+
+      const completeSpinner = createSpinner("Finalizing...");
+      try {
+        const result = await client.completePublish(freshAuth.accessToken, {
+          uploadKey: initResult.uploadKey!,
+          slug,
+          fileHash,
+          shortDescription: options.shortDesc,
+          tags,
+          changelog: options.changelog,
+          organizationId,
+          visibility,
+        });
+
+        completeSpinner.stop("Pushed");
+        logger.newline();
+        const target = organizationId ? `org registry (${options.org})` : "marketplace";
+        const visLabel = visibility === "private" ? "private" : "draft";
+        logger.success(`${result.name}@${result.version} pushed to ${target} (${visLabel})`);
+        logger.dim(`  ${serverUrl}/skills/${result.slug}`);
+
+        // Show audit warnings on success
+        if (result.auditFindings && result.auditFindings.length > 0) {
+          logger.newline();
+          displayFindings(result.auditFindings, "Security audit warnings:");
+        }
+
+        logger.newline();
+        if (visibility === "private") {
+          logger.dim("This skill is private. Only org members with permission can install it.");
+        } else {
+          logger.dim("Run 'osk publish <slug>' to make it public.");
+        }
+      } catch (err) {
+        completeSpinner.stop();
+        if (err instanceof MarketplaceApiError) {
+          const body = err.body as Record<string, unknown> | undefined;
+
+          // Audit failure with findings
+          if (body?.auditStatus === "fail" && Array.isArray(body?.findings)) {
+            logger.error("Skill failed security audit");
+            logger.newline();
+            displayFindings(body.findings as AuditFinding[]);
+            logger.newline();
+            logger.dim("Fix the flagged issues and try again.");
+          } else if (body?.details && Array.isArray(body.details)) {
+            logger.error(`${err.message}: ${(body.details as string[]).join(", ")}`);
+          } else {
+            logger.error(err.message);
+          }
+        } else {
+          logger.error(
+            `Finalization failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+        process.exit(1);
+      }
+    }
+  );
+

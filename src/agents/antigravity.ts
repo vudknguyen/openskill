@@ -5,6 +5,6 @@ export const antigravityAgent = new BaseAgent({
   displayName: "Antigravity",
   icon: "\u25cf",
   color: "\x1b[36m", // Cyan
-  defaultSkillPath: ".antigravity/skills",
-  globalDirName: ".antigravity",
+  defaultSkillPath: ".agent/skills",
+  globalDirName: ".gemini/antigravity",
 });

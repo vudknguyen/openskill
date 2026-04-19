@@ -71,12 +71,14 @@ describe("loadConfig", () => {
 
     expect(config.defaultAgent).toBe("claude");
     expect(config.defaultScope).toBe("project");
+    expect(config.serverUrl).toBe("https://www.openskill.sh");
     expect(config.repos.length).toBeGreaterThan(0);
     expect(mockedWriteFileSync).toHaveBeenCalled();
   });
 
   it("loads existing config file", () => {
     const existingConfig = {
+      version: CONFIG_VERSION,
       defaultAgent: "cursor",
       defaultScope: "global",
       repos: [{ name: "test-repo", url: "https://github.com/test/skills" }],
@@ -131,7 +133,10 @@ describe("loadConfig", () => {
 
     const config = loadConfig();
 
-    expect(config.repos).toEqual([{ name: "old-repo", url: "https://github.com/old/skills" }]);
+    // Old registries entry preserved as first repo
+    expect(config.repos[0]).toEqual({ name: "old-repo", url: "https://github.com/old/skills" });
+    // v3 migration adds default repos
+    expect(config.repos.length).toBeGreaterThan(1);
     // Should save migrated config
     expect(mockedWriteFileSync).toHaveBeenCalled();
   });
@@ -199,7 +204,8 @@ describe("loadConfig", () => {
 
     const config = loadConfig();
 
-    expect(config.repos).toEqual([{ name: "valid", url: "https://github.com/test/skills" }]);
+    // Only the valid repo from raw config is kept; default repos also added by v3 migration
+    expect(config.repos).toContainEqual({ name: "valid", url: "https://github.com/test/skills" });
   });
 
   it("includes version field in loaded config", () => {
@@ -255,6 +261,123 @@ describe("loadConfig", () => {
     expect(config.version).toBe(CONFIG_VERSION);
   });
 
+  it("migrates v1 config to v2 with new agents and antigravity path", () => {
+    const v1Config = {
+      version: 1,
+      defaultAgent: "claude",
+      defaultScope: "project",
+      repos: [],
+      agents: {
+        claude: { skillPath: ".claude/skills" },
+        antigravity: { skillPath: ".antigravity/skills" },
+        codex: { skillPath: ".codex/skills" },
+        cursor: { skillPath: ".cursor/skills" },
+      },
+    };
+
+    mockedExistsSync.mockImplementation((path) => {
+      if (typeof path === "string" && path.endsWith("config.json")) return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue(JSON.stringify(v1Config));
+
+    const config = loadConfig();
+
+    // New agents added
+    expect(config.agents.gemini).toEqual({ skillPath: ".gemini/skills" });
+    expect(config.agents.copilot).toEqual({ skillPath: ".github/skills" });
+    expect(config.agents.opencode).toEqual({ skillPath: ".opencode/skills" });
+    expect(config.agents.windsurf).toEqual({ skillPath: ".windsurf/skills" });
+
+    // Antigravity path migrated
+    expect(config.agents.antigravity.skillPath).toBe(".agent/skills");
+
+    expect(config.version).toBe(CONFIG_VERSION);
+    expect(mockedWriteFileSync).toHaveBeenCalled();
+  });
+
+  it("v1→v2 migration does not overwrite existing new agent configs", () => {
+    const v1Config = {
+      version: 1,
+      defaultAgent: "claude",
+      defaultScope: "project",
+      repos: [],
+      agents: {
+        claude: { skillPath: ".claude/skills" },
+        gemini: { skillPath: ".custom/gemini" },
+      },
+    };
+
+    mockedExistsSync.mockImplementation((path) => {
+      if (typeof path === "string" && path.endsWith("config.json")) return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue(JSON.stringify(v1Config));
+
+    const config = loadConfig();
+
+    // User's custom path preserved
+    expect(config.agents.gemini.skillPath).toBe(".custom/gemini");
+    // Other new agents still added
+    expect(config.agents.copilot).toEqual({ skillPath: ".github/skills" });
+  });
+
+  it("migrates v2 config to v3 adding default repos", () => {
+    const v2Config = {
+      version: 2,
+      defaultAgent: "claude",
+      defaultScope: "project",
+      repos: [
+        { name: "anthropic-official", url: "https://github.com/anthropics/skills" },
+        { name: "my-custom", url: "https://github.com/my/custom-skills" },
+      ],
+      agents: {
+        claude: { skillPath: ".claude/skills" },
+      },
+    };
+
+    mockedExistsSync.mockImplementation((path) => {
+      if (typeof path === "string" && path.endsWith("config.json")) return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue(JSON.stringify(v2Config));
+
+    const config = loadConfig();
+
+    // Existing repos preserved
+    expect(config.repos).toContainEqual({
+      name: "anthropic-official",
+      url: "https://github.com/anthropics/skills",
+    });
+    expect(config.repos).toContainEqual({
+      name: "my-custom",
+      url: "https://github.com/my/custom-skills",
+    });
+
+    // New default repos added (anthropic-official not duplicated since URL matches)
+    expect(config.repos).toContainEqual({
+      name: "vercel",
+      url: "https://github.com/vercel-labs/agent-skills",
+    });
+    expect(config.repos).toContainEqual({
+      name: "cloudflare",
+      url: "https://github.com/cloudflare/skills",
+    });
+    expect(config.repos).toContainEqual({
+      name: "huggingface",
+      url: "https://github.com/huggingface/skills",
+    });
+
+    // No duplicate anthropic-official
+    const anthropicCount = config.repos.filter(
+      (r) => r.url === "https://github.com/anthropics/skills"
+    ).length;
+    expect(anthropicCount).toBe(1);
+
+    expect(config.version).toBe(CONFIG_VERSION);
+    expect(mockedWriteFileSync).toHaveBeenCalled();
+  });
+
   it("does not re-migrate already migrated config", () => {
     const currentConfig = {
       version: CONFIG_VERSION,
@@ -277,6 +400,95 @@ describe("loadConfig", () => {
   });
 });
 
+describe("serverUrl config", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns default serverUrl when not set in config file", () => {
+    const existingConfig = {
+      version: CONFIG_VERSION,
+      defaultAgent: "claude",
+      defaultScope: "project",
+      repos: [],
+      agents: {},
+      // no serverUrl field
+    };
+
+    mockedExistsSync.mockImplementation((path) => {
+      if (typeof path === "string" && path.endsWith("config.json")) return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue(JSON.stringify(existingConfig));
+
+    const config = loadConfig();
+
+    expect(config.serverUrl).toBe("https://www.openskill.sh");
+  });
+
+  it("preserves custom serverUrl from config file", () => {
+    const existingConfig = {
+      version: CONFIG_VERSION,
+      defaultAgent: "claude",
+      defaultScope: "project",
+      serverUrl: "https://openskill.example.com",
+      repos: [],
+      agents: {},
+    };
+
+    mockedExistsSync.mockImplementation((path) => {
+      if (typeof path === "string" && path.endsWith("config.json")) return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue(JSON.stringify(existingConfig));
+
+    const config = loadConfig();
+
+    expect(config.serverUrl).toBe("https://openskill.example.com");
+  });
+
+  it("falls back to default when serverUrl is not a string", () => {
+    const existingConfig = {
+      version: CONFIG_VERSION,
+      defaultAgent: "claude",
+      defaultScope: "project",
+      serverUrl: 12345,
+      repos: [],
+      agents: {},
+    };
+
+    mockedExistsSync.mockImplementation((path) => {
+      if (typeof path === "string" && path.endsWith("config.json")) return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue(JSON.stringify(existingConfig));
+
+    const config = loadConfig();
+
+    expect(config.serverUrl).toBe("https://www.openskill.sh");
+  });
+
+  it("saves serverUrl via saveConfig", () => {
+    mockedExistsSync.mockReturnValue(true);
+
+    const config = {
+      version: CONFIG_VERSION,
+      defaultAgent: "claude",
+      defaultScope: "project" as const,
+      serverUrl: "https://custom.server.com",
+      telemetryEnabled: false,
+      repos: [],
+      agents: {},
+    };
+
+    saveConfig(config);
+
+    const savedContent = mockedWriteFileSync.mock.calls.at(-1)?.[1] as string;
+    const savedConfig = JSON.parse(savedContent);
+    expect(savedConfig.serverUrl).toBe("https://custom.server.com");
+  });
+});
+
 describe("saveConfig", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -288,6 +500,8 @@ describe("saveConfig", () => {
       version: CONFIG_VERSION,
       defaultAgent: "claude",
       defaultScope: "project" as const,
+      serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [],
       agents: {},
     };
@@ -297,7 +511,7 @@ describe("saveConfig", () => {
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
       expect.stringContaining("config.json"),
       expect.stringContaining('"defaultAgent": "claude"'),
-      "utf-8"
+      { encoding: "utf-8", mode: 0o600 }
     );
   });
 
@@ -306,6 +520,8 @@ describe("saveConfig", () => {
       version: CONFIG_VERSION,
       defaultAgent: "claude",
       defaultScope: "project" as const,
+      serverUrl: "http://localhost:3000",
+      telemetryEnabled: false,
       repos: [],
       agents: {},
     };
@@ -346,6 +562,7 @@ describe("addRepo", () => {
   it("updates existing repository URL", () => {
     mockedReadFileSync.mockReturnValue(
       JSON.stringify({
+        version: CONFIG_VERSION,
         defaultAgent: "claude",
         defaultScope: "project",
         repos: [{ name: "existing", url: "https://github.com/old/url" }],
@@ -415,6 +632,7 @@ describe("removeRepo", () => {
   it("removes an existing repository", () => {
     mockedReadFileSync.mockReturnValue(
       JSON.stringify({
+        version: CONFIG_VERSION,
         defaultAgent: "claude",
         defaultScope: "project",
         repos: [
@@ -435,6 +653,7 @@ describe("removeRepo", () => {
   it("returns false when repository does not exist", () => {
     mockedReadFileSync.mockReturnValue(
       JSON.stringify({
+        version: CONFIG_VERSION,
         defaultAgent: "claude",
         defaultScope: "project",
         repos: [{ name: "existing", url: "https://github.com/test/1" }],

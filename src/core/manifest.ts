@@ -20,6 +20,12 @@ export interface InstalledSkillRecord {
   installedAt: string;
   /** Install scope (project or global) */
   scope?: InstallScope;
+  /** Install source: "git" (default) or "marketplace" */
+  source?: "git" | "marketplace";
+  /** Marketplace skill slug (when source=marketplace) */
+  marketplaceSlug?: string;
+  /** Marketplace version (when source=marketplace) */
+  marketplaceVersion?: string;
 }
 
 export interface Manifest {
@@ -261,7 +267,7 @@ export function saveManifest(manifest: Manifest): void {
   const tempPath = path + ".tmp";
 
   // Write to temp file first
-  writeFileSync(tempPath, JSON.stringify(manifest, null, 2), "utf-8");
+  writeFileSync(tempPath, JSON.stringify(manifest, null, 2), { encoding: "utf-8", mode: 0o600 });
 
   // Atomic rename
   renameSync(tempPath, path);

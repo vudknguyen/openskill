@@ -1,15 +1,19 @@
 import { Command } from "commander";
 import { existsSync } from "fs";
 import { join } from "path";
-import { autocomplete, select, closePrompt } from "../utils/prompt.js";
+import { autocomplete, confirm, closePrompt } from "../utils/prompt.js";
 import { getAgent, getAllAgents, getAgentNames, InstallScope } from "../agents/index.js";
 import { loadConfig } from "../core/config.js";
 import { cloneRepo, getRepoCommit } from "../core/git.js";
 import { loadSkillFromDir, discoverSkills, SkillInfo } from "../core/skill.js";
 import { searchSkills } from "../core/registry.js";
 import { addSkillRecord } from "../core/manifest.js";
+import { installFromMarketplace } from "../core/marketplace-installer.js";
 import { parseGitUrl, safeJoinPath, getScopeLabel } from "../utils/fs.js";
 import { logger, createSpinner } from "../utils/logger.js";
+import { trackInstall } from "../core/telemetry.js";
+import { getValidAuth } from "../core/token-refresh.js";
+import { createMarketplaceClient } from "../core/marketplace-client.js";
 
 interface InstallContext {
   /** Repository owner/namespace (e.g., "anthropics") */
@@ -30,7 +34,10 @@ export const installCommand = new Command("install")
   .option("-t, --target <agent>", "Target agent (claude, cursor, codex, antigravity)")
   .option("-a, --all", "Install all skills from repository (requires -t/--target)")
   .option("-g, --global", "Install to global directory (~/.{agent}/skills/)")
+  .option("-m, --marketplace", "Install from the OpenSkill marketplace")
+  .option("--version <version>", "Specific marketplace version to install")
   .option("-y, --yes", "Skip interactive prompts, use defaults")
+  .option("--org <org>", "Install from organization's skill registry")
   .addHelpText(
     "after",
     `
@@ -43,6 +50,9 @@ Examples:
   $ osk install https://gitlab.com/user/repo   # Install from GitLab
   $ osk install git@github.com:user/repo.git   # Install via SSH
   $ osk install pdf                            # Search and install by name
+  $ osk install pdf-reader -m                  # Install from marketplace
+  $ osk install pdf-reader -m --version 1.0.0  # Specific marketplace version
+  $ osk install pdf-reader --org my-team       # Install from org registry
 `
   )
   .action(async (source: string, skillArg: string | undefined, options) => {
@@ -65,6 +75,42 @@ Examples:
       }
 
       const scope: InstallScope = options.global ? "global" : "project";
+
+      // Resolve org: explicit --org flag or defaultOrg from config
+      const orgSlug = options.org || loadConfig().defaultOrg;
+
+      // Org registry install path
+      if (orgSlug) {
+        try {
+          await installFromOrgRegistry(source, orgSlug, {
+            agent: options.target,
+            version: options.version,
+            scope,
+          });
+        } catch (err) {
+          logger.error(err instanceof Error ? err.message : String(err));
+          process.exit(1);
+        }
+        return;
+      }
+
+      // Marketplace install path
+      if (options.marketplace) {
+        try {
+          await installFromMarketplace(source, {
+            agent: options.target,
+            version: options.version,
+            scope,
+          });
+        } catch (err) {
+          logger.error(
+            err instanceof Error ? err.message : String(err)
+          );
+          process.exit(1);
+        }
+        return;
+      }
+
       const parsed = parseGitUrl(source);
 
       if (parsed) {
@@ -330,6 +376,14 @@ export async function installFromGitHub(
           scope,
         });
 
+        // Track telemetry
+        trackInstall(skill.frontmatter.name, undefined, {
+          agent: agentName,
+          source: "git",
+          repo: `${context.owner}/${context.repo}`,
+          scope,
+        });
+
         logger.success(
           `Installed ${skill.frontmatter.name} → ${agent.displayName}${getScopeLabel(scope)}`
         );
@@ -405,44 +459,257 @@ export async function interactiveInstallFromSkills(
   }
 }
 
+/**
+ * Interactive install from mixed search results (repos + marketplace).
+ * Each item is tagged with its source so the correct installer is called.
+ */
+export async function interactiveInstallFromMixed(
+  repoSkills: Array<{
+    name: string;
+    description: string;
+    repoOwner: string;
+    repoName: string;
+    repo: string;
+    skillPath: string;
+  }>,
+  marketplaceSkills: Array<{
+    slug: string;
+    name: string;
+    description: string;
+    shortDescription: string | null;
+    authorName: string | null;
+    auditStatus?: "pass" | "warning" | "fail" | "unscanned" | null;
+  }>,
+  githubSkills: Array<{
+    name: string;
+    description: string;
+    repoFullName: string | null;
+    stars: number | null;
+    auditStatus?: "pass" | "warning" | "fail" | "unscanned" | null;
+  }> = [],
+): Promise<void> {
+  const { truncate } = await import("../utils/fs.js");
+  const { selectScope } = await import("../utils/prompt.js");
+
+  type RepoChoice = { source: "repo"; skill: (typeof repoSkills)[number] };
+  type MarketChoice = { source: "marketplace"; skill: (typeof marketplaceSkills)[number] };
+  type GitHubChoice = { source: "github"; skill: (typeof githubSkills)[number] };
+
+  const choices: Array<{ name: string; hint: string; value: RepoChoice | MarketChoice | GitHubChoice }> = [];
+
+  for (const s of marketplaceSkills) {
+    choices.push({
+      name: s.name,
+      hint: `marketplace${s.authorName ? ` · ${s.authorName}` : ""} · ${truncate(s.shortDescription || s.description, 40)}`,
+      value: { source: "marketplace", skill: s },
+    });
+  }
+
+  for (const s of githubSkills) {
+    choices.push({
+      name: s.name,
+      hint: `github · ${s.repoFullName || "unknown"}${s.stars ? ` · ★ ${s.stars}` : ""} · ${truncate(s.description, 40)}`,
+      value: { source: "github", skill: s },
+    });
+  }
+
+  for (const s of repoSkills) {
+    choices.push({
+      name: s.name,
+      hint: `${s.repo} · ${truncate(s.description, 40)}`,
+      value: { source: "repo", skill: s },
+    });
+  }
+
+  if (choices.length === 0) return;
+
+  const selected = await autocomplete(
+    "Select skill(s) to install (space to select, enter to confirm):",
+    choices,
+    { multiple: true },
+  );
+
+  if (selected && selected.length > 0) {
+    // Check for skills that haven't passed audit
+    const unaudited = selected.filter((item) => {
+      if (item.source === "repo") return false;
+      const skill = item.skill as { auditStatus?: string | null; name: string };
+      return skill.auditStatus && skill.auditStatus !== "pass";
+    });
+
+    if (unaudited.length > 0) {
+      logger.newline();
+      for (const item of unaudited) {
+        const skill = item.skill as { name: string; auditStatus?: string | null };
+        if (skill.auditStatus === "fail") {
+          logger.warn(`${skill.name} has failed its security audit`);
+        } else if (skill.auditStatus === "warning") {
+          logger.warn(`${skill.name} has audit warnings`);
+        } else if (skill.auditStatus === "unscanned") {
+          logger.warn(`${skill.name} has not been audited`);
+        }
+      }
+      const proceed = await confirm("Continue installing unaudited/failed skill(s)?");
+      if (!proceed) {
+        logger.dim("Installation cancelled");
+        return;
+      }
+    }
+
+    logger.newline();
+    const scope = await selectScope();
+    logger.newline();
+
+    for (const item of selected) {
+      if (item.source === "repo") {
+        const s = item.skill as (typeof repoSkills)[number];
+        await installFromGitHub(s.repoOwner, s.repoName, s.skillPath, {
+          skillName: s.name,
+          scope,
+        });
+      } else if (item.source === "github") {
+        const s = item.skill as (typeof githubSkills)[number];
+        if (s.repoFullName) {
+          const [owner, repo] = s.repoFullName.split("/");
+          await installFromGitHub(owner, repo, undefined, { scope });
+        } else {
+          logger.warn(`Cannot install ${s.name}: missing repository information`);
+        }
+      } else {
+        const s = item.skill as (typeof marketplaceSkills)[number];
+        await installFromMarketplace(s.slug, { scope });
+      }
+    }
+  }
+}
+
 async function installByName(
   name: string,
   options: { agent?: string; yes?: boolean; scope?: InstallScope }
 ): Promise<void> {
   logger.info(`Searching for skill: ${name}...`);
 
-  const results = await searchSkills(name);
+  const { discoverSkills: discoverMarketplaceSkills } = await import("../core/marketplace-search.js");
 
-  if (results.length === 0) {
+  // Search local repos and marketplace in parallel
+  const [repoResults, discoveredResults] = await Promise.all([
+    searchSkills(name),
+    discoverMarketplaceSkills(name).catch(() => []),
+  ]);
+
+  const marketplaceResults = discoveredResults.filter((s) => s.source === "openskill");
+  const githubResults = discoveredResults.filter((s) => s.source === "github");
+
+  const totalCount = repoResults.length + discoveredResults.length;
+
+  if (totalCount === 0) {
     logger.error(`No skills found matching: ${name}`);
     logger.dim("Try updating repositories with: osk update --repos");
     process.exit(1);
   }
 
-  let selectedSkill = results.find((s) => s.name.toLowerCase() === name.toLowerCase());
-
-  if (!selectedSkill && results.length > 1 && !options.yes) {
-    selectedSkill = await select(
-      "Multiple skills found. Select one:",
-      results.slice(0, 10).map((s) => ({
-        name: s.name,
-        hint: `${s.description} (${s.repo})`,
-        value: s,
-      }))
-    );
-  } else if (!selectedSkill) {
-    selectedSkill = results[0];
-  }
-
-  if (!selectedSkill) {
-    logger.error(`Skill not found: ${name}`);
-    process.exit(1);
-  }
-
-  await installFromGitHub(
-    selectedSkill.repoOwner,
-    selectedSkill.repoName,
-    selectedSkill.skillPath,
-    options
+  // Exact match in marketplace — install directly
+  const exactMarketplace = marketplaceResults.find(
+    (s) => s.slug.toLowerCase() === name.toLowerCase() || s.name.toLowerCase() === name.toLowerCase()
   );
+  if (exactMarketplace) {
+    await installFromMarketplace(exactMarketplace.slug, {
+      agent: options.agent,
+      scope: options.scope,
+    });
+    return;
+  }
+
+  // Exact match in local repos
+  const exactRepo = repoResults.find((s) => s.name.toLowerCase() === name.toLowerCase());
+  if (exactRepo) {
+    await installFromGitHub(exactRepo.repoOwner, exactRepo.repoName, exactRepo.skillPath, options);
+    return;
+  }
+
+  // Exact match in GitHub discovered
+  const exactGithub = githubResults.find(
+    (s) => s.slug.toLowerCase() === name.toLowerCase() || s.name.toLowerCase() === name.toLowerCase()
+  );
+  if (exactGithub && exactGithub.repoFullName) {
+    const [owner, repo] = exactGithub.repoFullName.split("/");
+    await installFromGitHub(owner, repo, undefined, options);
+    return;
+  }
+
+  // No exact match — present combined choices
+  if (options.yes) {
+    // In non-interactive mode, pick first available result
+    if (marketplaceResults.length > 0) {
+      await installFromMarketplace(marketplaceResults[0].slug, {
+        agent: options.agent,
+        scope: options.scope,
+      });
+    } else if (repoResults.length > 0) {
+      await installFromGitHub(repoResults[0].repoOwner, repoResults[0].repoName, repoResults[0].skillPath, options);
+    } else if (githubResults.length > 0 && githubResults[0].repoFullName) {
+      const [owner, repo] = githubResults[0].repoFullName.split("/");
+      await installFromGitHub(owner, repo, undefined, options);
+    }
+    return;
+  }
+
+  await interactiveInstallFromMixed(repoResults, marketplaceResults, githubResults);
+}
+
+// ============================================
+// Org Registry Install
+// ============================================
+
+async function installFromOrgRegistry(
+  skillSlug: string,
+  orgSlugOrId: string,
+  options: { agent?: string; version?: string; scope: InstallScope },
+) {
+  const auth = await getValidAuth();
+  if (!auth) {
+    throw new Error("Not logged in. Run 'osk login' first.");
+  }
+
+  const client = createMarketplaceClient();
+  const spinner = createSpinner("Checking organization registry...");
+
+  // Resolve org
+  const orgs = await client.listOrgs(auth.accessToken);
+  const org = orgs.find((o) => o.slug === orgSlugOrId || o.id === orgSlugOrId);
+  if (!org) {
+    spinner.stop("Organization not found");
+    throw new Error(`Organization "${orgSlugOrId}" not found. Run 'osk org ls' to see your organizations.`);
+  }
+
+  // Check if skill is in org registry
+  const result = await client.getOrgSkills(org.id, auth.accessToken);
+  const orgSkill = result.skills.find((s) => s.skillSlug === skillSlug);
+  if (!orgSkill) {
+    spinner.stop("Skill not in org registry");
+    const available = result.skills.map((s) => s.skillSlug).join(", ");
+    throw new Error(
+      `Skill "${skillSlug}" is not in ${org.name}'s registry.${available ? ` Available: ${available}` : " Registry is empty."}`
+    );
+  }
+
+  // Check audit policy
+  if (result.organization.requireAuditPass && orgSkill.skillAuditStatus !== "pass") {
+    spinner.stop("Blocked by audit policy");
+    throw new Error(
+      `Skill "${skillSlug}" has audit status "${orgSkill.skillAuditStatus}". ` +
+      `Organization policy requires skills to pass audit. Contact your org admin.`
+    );
+  }
+
+  spinner.stop(`Found "${orgSkill.skillName}" in ${org.name}'s registry`);
+
+  // Install via marketplace (the skill is a marketplace skill linked to the org)
+  await installFromMarketplace(skillSlug, {
+    agent: options.agent,
+    version: options.version,
+    scope: options.scope,
+  });
+
+  logger.dim(`  Installed from ${org.name}'s org registry`);
 }

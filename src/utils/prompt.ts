@@ -157,6 +157,17 @@ export async function autocomplete<T>(
         message,
         choices: searchChoices,
       });
+
+      // If user pressed Enter without pressing Space first (empty result),
+      // fall back to single select where Enter works naturally
+      if (result.length === 0 && searchChoices.length > 0) {
+        const single = await inquirerSelect({
+          message: "Select one:",
+          choices: searchChoices,
+        });
+        return [single];
+      }
+
       return result;
     }
 

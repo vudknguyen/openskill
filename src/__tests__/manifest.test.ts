@@ -150,7 +150,7 @@ describe("saveManifest", () => {
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
       join("/mock/config", "manifest.json.tmp"),
       expect.any(String),
-      "utf-8"
+      { encoding: "utf-8", mode: 0o600 }
     );
 
     // Then rename atomically

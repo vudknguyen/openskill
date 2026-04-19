@@ -1,0 +1,191 @@
+import { Command } from "commander";
+import { execFile } from "child_process";
+import { platform } from "os";
+import { logger, createSpinner } from "../utils/logger.js";
+import { loadAuth, saveAuth, type AuthData } from "../core/auth.js";
+import { loadConfig } from "../core/config.js";
+import {
+  createMarketplaceClient,
+  MarketplaceClient,
+  type DeviceCodeResponse,
+  type DeviceTokenResponse,
+  type DeviceTokenErrorResponse,
+} from "../core/marketplace-client.js";
+import { validateServerUrl } from "../utils/url.js";
+
+function openBrowser(url: string): void {
+  // Validate URL format to prevent command injection
+  try {
+    new URL(url);
+  } catch {
+    return;
+  }
+
+  const os = platform();
+  if (os === "darwin") {
+    execFile("open", [url], () => {});
+  } else if (os === "win32") {
+    // Use empty title arg to prevent injection via cmd /c start
+    execFile("cmd", ["/c", "start", "", url], () => {});
+  } else {
+    execFile("xdg-open", [url], () => {});
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function pollForToken(
+  client: MarketplaceClient,
+  deviceCode: string,
+  interval: number,
+  expiresIn: number
+): Promise<DeviceTokenResponse> {
+  const deadline = Date.now() + expiresIn * 1000;
+
+  while (Date.now() < deadline) {
+    await sleep(interval * 1000);
+
+    const body = await client.pollDeviceToken(deviceCode);
+
+    if ("access_token" in body) {
+      return body as DeviceTokenResponse;
+    }
+
+    if ("error" in body) {
+      const err = body as DeviceTokenErrorResponse;
+      if (err.error === "authorization_pending") {
+        continue;
+      }
+      if (err.error === "slow_down") {
+        interval += 5;
+        continue;
+      }
+      throw new Error(err.error);
+    }
+  }
+
+  throw new Error("expired_token");
+}
+
+export const loginCommand = new Command("login")
+  .description("Authenticate with the OpenSkill marketplace")
+  .option("-s, --server <url>", "Server URL", loadConfig().serverUrl)
+  .option("--no-browser", "Don't open browser automatically")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ osk login
+  $ osk login --server https://openskill.example.com
+  $ osk login --no-browser`
+  )
+  .action(async (options: { server: string; browser: boolean }) => {
+    let serverUrl: string;
+    try {
+      serverUrl = validateServerUrl(options.server);
+    } catch {
+      logger.error(`Invalid server URL: ${options.server}`);
+      return;
+    }
+
+    // Check existing auth
+    const existing = loadAuth();
+    if (existing && existing.serverUrl === serverUrl) {
+      logger.info(
+        `Already logged in as ${existing.user?.name ?? existing.user?.email ?? "unknown"}`
+      );
+      logger.dim("Run 'osk logout' first to switch accounts.");
+      return;
+    }
+
+    const client = createMarketplaceClient(serverUrl);
+
+    // Step 1: Request device code
+    let deviceData: DeviceCodeResponse;
+    try {
+      deviceData = await client.requestDeviceCode(`osk/0.1.0 ${platform()}`);
+    } catch (err) {
+      logger.error(
+        `Failed to connect to ${serverUrl}: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
+      return;
+    }
+
+    // Step 2: Show code and open browser
+    logger.newline();
+    logger.log(`  Your code: \x1b[1m\x1b[4m${deviceData.user_code}\x1b[0m`);
+    logger.newline();
+    logger.dim(`  Open: ${deviceData.verification_uri_complete}`);
+    logger.newline();
+
+    if (options.browser) {
+      // Validate URL origin matches server to prevent phishing redirects
+      try {
+        const verifyUrl = new URL(deviceData.verification_uri_complete);
+        const serverOrigin = new URL(serverUrl);
+        if (verifyUrl.origin !== serverOrigin.origin) {
+          logger.error("Server returned a verification URL with a different origin. Aborting.");
+          return;
+        }
+      } catch {
+        logger.error("Server returned an invalid verification URL.");
+        return;
+      }
+      openBrowser(deviceData.verification_uri_complete);
+      logger.dim("  Browser opened. Approve the device to continue.");
+    } else {
+      logger.dim(
+        "  Open the URL above in your browser and approve the device."
+      );
+    }
+    logger.newline();
+
+    // Step 3: Poll for token
+    const spinner = createSpinner("Waiting for approval...");
+    try {
+      const tokenData = await pollForToken(
+        client,
+        deviceData.device_code,
+        deviceData.interval,
+        deviceData.expires_in
+      );
+      spinner.stop("Approved");
+
+      // Step 4: Fetch user info
+      const user = await client.fetchCurrentUser(tokenData.access_token);
+
+      // Step 5: Save auth (access token expires in expires_in seconds, refresh in 90 days)
+      const expiresAt = new Date(
+        Date.now() + tokenData.expires_in * 1000
+      ).toISOString();
+      const refreshExpiresAt = new Date(
+        Date.now() + 90 * 24 * 60 * 60 * 1000
+      ).toISOString();
+
+      const authData: AuthData = {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        serverUrl,
+        user: { id: user.id, name: user.name, email: user.email },
+        expiresAt,
+        refreshExpiresAt,
+        createdAt: new Date().toISOString(),
+      };
+      saveAuth(authData);
+
+      logger.success(`Logged in as ${user.name} (${user.email})`);
+    } catch (err) {
+      spinner.stop();
+      const msg = err instanceof Error ? err.message : "Unknown error";
+
+      if (msg === "access_denied") {
+        logger.error("Authorization was denied.");
+      } else if (msg === "expired_token") {
+        logger.error("Device code expired. Run 'osk login' to try again.");
+      } else {
+        logger.error(`Login failed: ${msg}`);
+      }
+    }
+  });

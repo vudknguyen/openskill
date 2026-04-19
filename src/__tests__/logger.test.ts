@@ -209,9 +209,11 @@ describe("logger", () => {
 
 describe("createSpinner", () => {
   let logOutput: string[];
+  let writeOutput: string[];
 
   beforeEach(async () => {
     logOutput = [];
+    writeOutput = [];
     vi.resetModules();
     vi.useFakeTimers();
 
@@ -222,7 +224,7 @@ describe("createSpinner", () => {
     (process.stdout as { write: typeof process.stdout.write }).write = vi.fn(
       (text: string | Uint8Array) => {
         if (typeof text === "string") {
-          logOutput.push(text);
+          writeOutput.push(text);
         }
         return true;
       }
@@ -239,20 +241,14 @@ describe("createSpinner", () => {
     vi.useRealTimers();
   });
 
-  // Note: We test spinner behavior based on actual TTY state
-  // since process.stdout.isTTY is not configurable at runtime
-
   it("creates spinner and can stop it", async () => {
     const { createSpinner } = await import("../utils/logger.js");
     const spinner = createSpinner("Loading...");
 
-    // Advance timers
     vi.advanceTimersByTime(160);
-
     spinner.stop("Done");
 
-    // Should have logged something (either spinner or simple message)
-    expect(logOutput.length).toBeGreaterThan(0);
+    expect(logOutput.length + writeOutput.length).toBeGreaterThan(0);
   });
 
   it("allows updating spinner message", async () => {
@@ -263,7 +259,6 @@ describe("createSpinner", () => {
     vi.advanceTimersByTime(80);
 
     spinner.stop();
-    // No assertion needed - just verify it doesn't throw
   });
 
   it("shows completion message on stop", async () => {
@@ -279,7 +274,6 @@ describe("createSpinner", () => {
     const { createSpinner } = await import("../utils/logger.js");
     const spinner = createSpinner("Loading...");
 
-    // Should not throw
     spinner.stop();
   });
 });

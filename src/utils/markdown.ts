@@ -5,6 +5,7 @@ export interface SkillFrontmatter {
   description: string;
   license?: string;
   compatibility?: string;
+  tags?: string;
   metadata?: Record<string, string>;
   "allowed-tools"?: string;
 }

@@ -3,12 +3,28 @@ import { claudeAgent } from "./claude.js";
 import { antigravityAgent } from "./antigravity.js";
 import { codexAgent } from "./codex.js";
 import { cursorAgent } from "./cursor.js";
+import { geminiAgent } from "./gemini.js";
+import { copilotAgent } from "./copilot.js";
+import { opencodeAgent } from "./opencode.js";
+import { windsurfAgent } from "./windsurf.js";
+import { agentsAgent } from "./agents.js";
+import { kiroAgent } from "./kiro.js";
+import { warpAgent } from "./warp.js";
+import { openclawAgent } from "./openclaw.js";
 
 export const agents: Record<string, Agent> = {
   claude: claudeAgent,
   antigravity: antigravityAgent,
   codex: codexAgent,
   cursor: cursorAgent,
+  gemini: geminiAgent,
+  copilot: copilotAgent,
+  opencode: opencodeAgent,
+  windsurf: windsurfAgent,
+  agents: agentsAgent,
+  kiro: kiroAgent,
+  warp: warpAgent,
+  openclaw: openclawAgent,
 };
 
 export function getAgent(name: string): Agent | undefined {
@@ -28,3 +44,11 @@ export { claudeAgent } from "./claude.js";
 export { antigravityAgent } from "./antigravity.js";
 export { codexAgent } from "./codex.js";
 export { cursorAgent } from "./cursor.js";
+export { geminiAgent } from "./gemini.js";
+export { copilotAgent } from "./copilot.js";
+export { opencodeAgent } from "./opencode.js";
+export { windsurfAgent } from "./windsurf.js";
+export { agentsAgent } from "./agents.js";
+export { kiroAgent } from "./kiro.js";
+export { warpAgent } from "./warp.js";
+export { openclawAgent } from "./openclaw.js";

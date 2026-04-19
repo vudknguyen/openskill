@@ -5,6 +5,7 @@ import { PromptCancelledError, confirm } from "../utils/prompt.js";
 import { loadConfig } from "../core/config.js";
 import { refreshAllRepos } from "../core/registry.js";
 import { logger, createSpinner } from "../utils/logger.js";
+import { trackStart, trackError, flushTelemetry } from "../core/telemetry.js";
 import { installCommand } from "./install.js";
 import { uninstallCommand } from "./uninstall.js";
 import { listCommand } from "./list.js";
@@ -19,7 +20,20 @@ import { completionCommand } from "./completion.js";
 import { configCommand } from "./config.js";
 import { repoCommand } from "./repo.js";
 import { browseCommand } from "./browse.js";
+import { loginCommand } from "./login.js";
+import { logoutCommand } from "./logout.js";
+import { whoamiCommand } from "./whoami.js";
+import { pushCommand } from "./push.js";
+import { publishCommand } from "./publish.js";
+import { auditCommand } from "./audit.js";
+import { orgCommand } from "./org.js";
+import { doctorCommand } from "./doctor.js";
+import { starCommand } from "./star.js";
+import { diffCommand } from "./diff.js";
+import { statsCommand } from "./stats.js";
+import { shareCommand } from "./share.js";
 import { versionCommand, getVersion } from "./version.js";
+import { detectStack } from "../core/detect.js";
 
 const program = new Command();
 
@@ -39,6 +53,18 @@ program
     // Check if first run (no repos synced yet)
     const hasRepos = config.repos.length > 0;
 
+    // Auto-detect tech stack
+    const stacks = detectStack();
+    if (stacks.length > 0) {
+      logger.log("Detected tech stack:");
+      for (const stack of stacks) {
+        logger.dim(`  • ${stack.name}`);
+      }
+      logger.newline();
+      logger.dim(`Try: osk search ${stacks[0].tags[0]}`);
+      logger.newline();
+    }
+
     if (hasRepos) {
       // Show quick start commands
       logger.log("Common commands:");
@@ -46,6 +72,7 @@ program
       logger.dim("  osk search <query>   Search for skills");
       logger.dim("  osk install <repo>   Install skills from repository");
       logger.dim("  osk list             List installed skills");
+      logger.dim("  osk doctor           Check system health");
       logger.dim("  osk help             Show all commands");
       logger.newline();
 
@@ -91,21 +118,48 @@ program.addCommand(completionCommand);
 program.addCommand(configCommand);
 program.addCommand(repoCommand);
 program.addCommand(browseCommand);
+program.addCommand(loginCommand);
+program.addCommand(logoutCommand);
+program.addCommand(whoamiCommand);
+program.addCommand(pushCommand);
+program.addCommand(publishCommand);
+program.addCommand(auditCommand);
+program.addCommand(orgCommand);
+program.addCommand(doctorCommand);
+program.addCommand(starCommand);
+program.addCommand(diffCommand);
+program.addCommand(statsCommand);
+program.addCommand(shareCommand);
 program.addCommand(versionCommand);
+
+// Track CLI start
+trackStart();
 
 // Handle unhandled rejections (including PromptCancelledError)
 process.on("unhandledRejection", (reason) => {
   if (reason instanceof PromptCancelledError) {
+    flushTelemetry();
     process.exit(0);
   }
+  if (reason instanceof Error) {
+    trackError(reason, process.argv[2] || "unknown");
+  }
+  flushTelemetry();
   logger.rawError(reason);
   process.exit(1);
 });
 
-program.parseAsync().catch((err) => {
+// Note: process.on("exit") cannot flush async telemetry - events persist to disk instead
+
+program.parseAsync().then(() => {
+  flushTelemetry();
+}).catch((err) => {
   if (err instanceof PromptCancelledError) {
+    flushTelemetry();
     process.exit(0);
   }
+  trackError(err, process.argv[2] || "unknown");
+  flushTelemetry();
   logger.error(err.message);
   process.exit(1);
 });

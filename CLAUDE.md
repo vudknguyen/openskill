@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenSkill (`osk`) is a lightweight, agent-agnostic CLI for managing AI coding agent skills. Supports Claude Code, Antigravity, OpenAI Codex, and Cursor.
+OpenSkill (`osk`) is a lightweight, agent-agnostic CLI for managing AI coding agent skills. Supports Claude Code, Antigravity, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Windsurf, Kiro, Warp, OpenClaw, and the generic Agents spec.
 
 ## Build Commands
 
@@ -46,7 +46,7 @@ src/
 │   └── manifest.ts # Installed skills tracking (~/.openskill/manifest.json)
 ├── agents/        # Agent adapters (strategy pattern)
 │   ├── types.ts   # Agent interface
-│   └── *.ts       # claude, antigravity, codex, cursor
+│   └── *.ts       # claude, antigravity, codex, cursor, gemini, copilot, opencode, windsurf, kiro, warp, openclaw, agents
 └── utils/
     ├── logger.ts  # ANSI colors (no deps)
     ├── prompt.ts  # Interactive prompts (@inquirer/prompts)
@@ -56,11 +56,12 @@ src/
 
 ## Dependencies
 
-Minimal by design - 3 runtime dependencies:
+Minimal by design - 4 runtime dependencies:
 
 - `commander` - CLI framework
 - `gray-matter` - YAML frontmatter parsing
 - `@inquirer/prompts` - Interactive prompts (select, checkbox, confirm, input, search)
+- `tar` - Tar archive creation/extraction for marketplace packages
 
 All other functionality uses Node.js built-ins.
 
@@ -74,6 +75,12 @@ All other functionality uses Node.js built-ins.
 | `update`                   | `up`  | Check and apply skill updates               |
 | `search <query>`           | `s`   | Search for skills                           |
 | `browse`                   | `b`   | Browse available skills                     |
+| `login`                    |       | Authenticate with the marketplace           |
+| `logout`                   |       | Log out and revoke token                    |
+| `whoami`                   |       | Show current login status                   |
+| `push [path]`              |       | Push skill to marketplace as draft          |
+| `publish <slug>`           |       | Make a pushed skill public                  |
+| `audit [path]`             |       | Run security audit on a skill               |
 | `repo add <source>`        |       | Add a skill repository                      |
 | `repo ls`                  |       | List configured repositories                |
 | `repo rm <name>`           |       | Remove a repository                         |
@@ -106,6 +113,24 @@ Detailed documentation is available in the `docs/` directory:
 | [docs/skills.md](docs/skills.md)             | Skill format specification                   |
 | [docs/agents.md](docs/agents.md)             | Agent adapters and configuration             |
 | [docs/repositories.md](docs/repositories.md) | Repository URL formats and management        |
+
+## Skill routing
+
+When the user's request matches an available skill, ALWAYS invoke it using the Skill
+tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
+The skill has specialized workflows that produce better results than ad-hoc answers.
+
+Key routing rules:
+- Product ideas, "is this worth building", brainstorming → invoke office-hours
+- Bugs, errors, "why is this broken", 500 errors → invoke investigate
+- Ship, deploy, push, create PR → invoke ship
+- QA, test the site, find bugs → invoke qa
+- Code review, check my diff → invoke review
+- Update docs after shipping → invoke document-release
+- Weekly retro → invoke retro
+- Design system, brand → invoke design-consultation
+- Visual audit, design polish → invoke design-review
+- Architecture review → invoke plan-eng-review
 
 ## License
 

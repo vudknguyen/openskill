@@ -12,6 +12,7 @@ export interface SkillInfo {
   relativePath: string;
   license?: string;
   compatibility?: string;
+  tags?: string;
   metadata?: Record<string, string>;
 }
 
@@ -51,6 +52,7 @@ export function loadSkillInfo(skillDir: string, basePath?: string): SkillInfo | 
     relativePath,
     license: skill.frontmatter.license,
     compatibility: skill.frontmatter.compatibility,
+    tags: skill.frontmatter.tags || skill.frontmatter.metadata?.tags,
     metadata: skill.frontmatter.metadata,
   };
 }
@@ -83,7 +85,7 @@ export function validateSkillName(name: string): {
   valid: boolean;
   error?: string;
 } {
-  if (!name || name.length === 0) {
+  if (!name) {
     return { valid: false, error: "Name cannot be empty" };
   }
 
@@ -109,7 +111,7 @@ export function validateSkillDescription(description: string): {
   valid: boolean;
   error?: string;
 } {
-  if (!description || description.length === 0) {
+  if (!description) {
     return { valid: false, error: "Description cannot be empty" };
   }
 

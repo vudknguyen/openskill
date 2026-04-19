@@ -45,12 +45,13 @@ Provide examples...
 
 | Field         | Required | Description                                  |
 | ------------- | -------- | -------------------------------------------- |
-| `name`        | Yes      | Unique skill identifier (lowercase, hyphens) |
-| `description` | Yes      | Brief description (one line)                 |
+| `name`        | Yes      | Unique skill identifier (max 256 characters)  |
+| `description` | Yes      | Brief description (max 4096 characters)      |
 | `version`     | No       | Semantic version (default: 1.0.0)            |
 | `author`      | No       | Skill author name                            |
 | `tags`        | No       | List of tags for discovery                   |
 | `agents`      | No       | List of compatible agents                    |
+| `allowed-tools` | No     | Tools the skill needs (string or list)       |
 
 ---
 
@@ -226,6 +227,8 @@ Provide metadata for the repository:
 
 ### Publishing Steps
 
+#### Via Git Repository
+
 1. Create a Git repository (GitHub, GitLab, etc.)
 2. Add your skills following the structure above
 3. Push to remote
@@ -236,6 +239,32 @@ Users can then add your repository:
 ```bash
 osk repo add https://github.com/username/my-skills
 osk browse
+```
+
+#### Via OpenSkill Marketplace
+
+1. Authenticate with the marketplace:
+
+```bash
+osk login
+```
+
+2. Run a security audit (recommended):
+
+```bash
+osk audit ./my-skill
+```
+
+3. Push the skill as a draft:
+
+```bash
+osk push ./my-skill
+```
+
+4. Make the draft public:
+
+```bash
+osk publish my-skill
 ```
 
 ---

@@ -62,6 +62,12 @@ osk update
 | `update`                   | `up`  | Check and apply skill updates      |
 | `search <query>`           | `s`   | Search for skills in repositories  |
 | `browse`                   | `b`   | Browse available skills            |
+| `login`                    |       | Authenticate with the marketplace  |
+| `logout`                   |       | Log out and revoke token           |
+| `whoami`                   |       | Show current login status          |
+| `push [path]`              |       | Push skill to marketplace as draft |
+| `publish <slug>`           |       | Make a pushed skill public         |
+| `audit [path]`             |       | Run security audit on a skill      |
 | `repo add <source>`        |       | Add a skill repository             |
 | `repo ls`                  |       | List configured repositories       |
 | `repo rm <name>`           |       | Remove a repository                |
