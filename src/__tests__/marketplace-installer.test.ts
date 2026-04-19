@@ -329,10 +329,10 @@ describe("installFromMarketplace", () => {
 
     await expect(installFromMarketplace("my-skill", {})).rejects.toThrow();
 
-    expect(mockRmSync).toHaveBeenCalledWith(
-      expect.stringContaining("osk-marketplace-my-skill-"),
-      { recursive: true, force: true }
-    );
+    expect(mockRmSync).toHaveBeenCalledWith(expect.stringContaining("osk-marketplace-my-skill-"), {
+      recursive: true,
+      force: true,
+    });
   });
 
   it("cleans up temp directory on successful install", async () => {
@@ -340,10 +340,10 @@ describe("installFromMarketplace", () => {
 
     await installFromMarketplace("my-skill", {});
 
-    expect(mockRmSync).toHaveBeenCalledWith(
-      expect.stringContaining("osk-marketplace-my-skill-"),
-      { recursive: true, force: true }
-    );
+    expect(mockRmSync).toHaveBeenCalledWith(expect.stringContaining("osk-marketplace-my-skill-"), {
+      recursive: true,
+      force: true,
+    });
   });
 
   it("rejects download when hash does not match metadata", async () => {
