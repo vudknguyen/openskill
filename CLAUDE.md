@@ -108,6 +108,7 @@ npm test -- --run         # all tests must pass
 Fix all lint errors, formatting issues, and failing tests before committing. `npm run check` runs all of these in sequence (lint + format:check + build + test).
 
 For auto-fixable issues:
+
 - Lint: `npm run lint:fix`
 - Formatting: `npm run format:check -- --write` (or `npm run format`)
 
