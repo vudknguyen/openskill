@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenSkill (`osk`) is a lightweight, agent-agnostic CLI for managing AI coding agent skills. Supports Claude Code, Antigravity, OpenAI Codex, and Cursor.
+OpenSkill (`osk`) is a lightweight, agent-agnostic CLI for managing AI coding agent skills. Supports Claude Code, Antigravity, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Windsurf, Kiro, Warp, OpenClaw, and the generic Agents spec.
 
 ## Build Commands
 
@@ -46,7 +46,7 @@ src/
 │   └── manifest.ts # Installed skills tracking (~/.openskill/manifest.json)
 ├── agents/        # Agent adapters (strategy pattern)
 │   ├── types.ts   # Agent interface
-│   └── *.ts       # claude, antigravity, codex, cursor
+│   └── *.ts       # claude, antigravity, codex, cursor, gemini, copilot, opencode, windsurf, kiro, warp, openclaw, agents
 └── utils/
     ├── logger.ts  # ANSI colors (no deps)
     ├── prompt.ts  # Interactive prompts (@inquirer/prompts)

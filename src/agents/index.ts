@@ -7,6 +7,10 @@ import { geminiAgent } from "./gemini.js";
 import { copilotAgent } from "./copilot.js";
 import { opencodeAgent } from "./opencode.js";
 import { windsurfAgent } from "./windsurf.js";
+import { agentsAgent } from "./agents.js";
+import { kiroAgent } from "./kiro.js";
+import { warpAgent } from "./warp.js";
+import { openclawAgent } from "./openclaw.js";
 
 export const agents: Record<string, Agent> = {
   claude: claudeAgent,
@@ -17,6 +21,10 @@ export const agents: Record<string, Agent> = {
   copilot: copilotAgent,
   opencode: opencodeAgent,
   windsurf: windsurfAgent,
+  agents: agentsAgent,
+  kiro: kiroAgent,
+  warp: warpAgent,
+  openclaw: openclawAgent,
 };
 
 export function getAgent(name: string): Agent | undefined {
@@ -40,3 +48,7 @@ export { geminiAgent } from "./gemini.js";
 export { copilotAgent } from "./copilot.js";
 export { opencodeAgent } from "./opencode.js";
 export { windsurfAgent } from "./windsurf.js";
+export { agentsAgent } from "./agents.js";
+export { kiroAgent } from "./kiro.js";
+export { warpAgent } from "./warp.js";
+export { openclawAgent } from "./openclaw.js";
