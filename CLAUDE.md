@@ -95,6 +95,20 @@ All other functionality uses Node.js built-ins.
 | `completion [shell]`       |       | Generate shell completion (bash, zsh, fish) |
 | `version`                  | `v`   | Show version information                    |
 
+## Pre-commit checks
+
+Before creating any commit, always run:
+
+```bash
+npm run lint              # must pass with 0 errors
+npm run format:check      # must pass
+npm test -- --run         # all tests must pass
+```
+
+Fix all lint errors, formatting issues, and failing tests before committing. `npm run check` runs all of these in sequence (lint + format:check + build + test).
+
+For auto-fixable issues, use `npm run lint:fix` and `npm run format`.
+
 ## Key Patterns
 
 - **Agent Interface**: Implement `Agent` in `src/agents/types.ts` to add new agents
