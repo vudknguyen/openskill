@@ -11,11 +11,11 @@
 
 **Agent-agnostic skill manager for AI coding assistants**
 
-OpenSkill is a lightweight CLI tool for managing skills across multiple AI coding agents. Install, update, and share skills seamlessly between Claude Code, Cursor, OpenAI Codex, and Antigravity.
+OpenSkill is a lightweight CLI tool for managing skills across multiple AI coding agents. Install, update, and share skills seamlessly across Claude Code, Cursor, OpenAI Codex, Antigravity, Gemini CLI, GitHub Copilot, OpenCode, Windsurf, Kiro, Warp, OpenClaw, and the generic Agents spec.
 
 ## Features
 
-- **Multi-agent support** - Works with Claude Code, Cursor, OpenAI Codex, and Antigravity
+- **Multi-agent support** - Works with 12 agents: Claude Code, Cursor, Codex, Antigravity, Gemini, Copilot, OpenCode, Windsurf, Kiro, Warp, OpenClaw, and the Agents spec
 - **Unified skill format** - SKILL.md format compatible across all agents
 - **Project & global scopes** - Install skills per-project or globally
 - **Repository management** - Browse, search, and sync skill repositories

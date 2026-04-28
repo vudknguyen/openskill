@@ -36,12 +36,14 @@ export const updateCommand = new Command("update")
   .description("Update skills and repositories")
   .option("--repos", "Only update repository caches")
   .option("--check", "Only check for updates, don't install")
+  .option("-a, --all", "Update all skills without prompting (non-interactive)")
   .option("-s, --server <url>", "Server URL override")
   .addHelpText(
     "after",
     `
 Examples:
-  $ osk up                     # Interactive update
+  $ osk up                     # Interactive update (pick which to apply)
+  $ osk up -a                  # Non-interactive: update everything
   $ osk up --check             # Check for updates only
   $ osk up --repos             # Update repository cache
 `
@@ -144,11 +146,14 @@ Examples:
       };
     });
 
-    const selected = await autocomplete<SkillUpdate>(
-      "Search and select skills to update (space to select, enter to confirm):",
-      choices,
-      { multiple: true }
-    );
+    // -a/--all: update everything without prompting (CI-friendly)
+    const selected: SkillUpdate[] = options.all
+      ? updates
+      : await autocomplete<SkillUpdate>(
+          "Search and select skills to update (space to select, enter to confirm):",
+          choices,
+          { multiple: true }
+        );
 
     if (selected.length === 0) {
       logger.warn("No skills selected. Update cancelled.");
