@@ -97,15 +97,22 @@ All other functionality uses Node.js built-ins.
 
 ## Pre-commit checks
 
-Before creating any commit, always run:
+Before creating any commit, always run all four checks:
 
 ```bash
-npm run lint              # must pass with 0 errors
-npm run format:check      # must pass
-npm test -- --run         # all tests must pass
+npm run lint              # ESLint — must pass with 0 errors
+npm run format:check      # Prettier formatting — must pass
+npm run build             # tsc typecheck — must pass with 0 errors
+npm test -- --run         # Vitest — all tests must pass
 ```
 
-Fix all lint errors, formatting issues, and failing tests before committing. `npm run check` runs all of these in sequence (lint + format:check + build + test).
+Or use the single shortcut that runs all of them in sequence:
+
+```bash
+npm run check             # lint + format:check + build + test
+```
+
+Fix all lint errors, formatting issues, type errors, and failing tests before committing.
 
 For auto-fixable issues:
 

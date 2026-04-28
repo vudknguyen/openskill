@@ -4,12 +4,20 @@ OpenSkill supports multiple AI coding agents. Each agent has its own configurati
 
 ## Supported Agents
 
-| Agent       | ID            | Config Directory  | Skills Directory |
-| ----------- | ------------- | ----------------- | ---------------- |
-| Claude Code | `claude`      | `~/.claude/`      | `skills/`        |
-| Cursor      | `cursor`      | `~/.cursor/`      | `skills/`        |
-| Codex       | `codex`       | `~/.codex/`       | `skills/`        |
-| Antigravity | `antigravity` | `~/.antigravity/` | `skills/`        |
+| Agent          | ID            | Project path              | Global path                        |
+| -------------- | ------------- | ------------------------- | ---------------------------------- |
+| Claude Code    | `claude`      | `.claude/skills/`         | `~/.claude/skills/`                |
+| Cursor         | `cursor`      | `.cursor/skills/`         | `~/.cursor/skills/`                |
+| OpenAI Codex   | `codex`       | `.codex/skills/`          | `~/.codex/skills/`                 |
+| Antigravity    | `antigravity` | `.antigravity/skills/`    | `~/.antigravity/skills/`           |
+| Gemini CLI     | `gemini`      | `.gemini/skills/`         | `~/.gemini/skills/`                |
+| GitHub Copilot | `copilot`     | `.github/copilot/skills/` | `~/.config/github-copilot/skills/` |
+| OpenCode       | `opencode`    | `.opencode/skills/`       | `~/.config/opencode/skills/`       |
+| Windsurf       | `windsurf`    | `.windsurf/skills/`       | `~/.windsurf/skills/`              |
+| Kiro           | `kiro`        | `.kiro/skills/`           | `~/.kiro/skills/`                  |
+| Warp           | `warp`        | `.warp/skills/`           | `~/.warp/skills/`                  |
+| OpenClaw       | `openclaw`    | `skills/`                 | `~/.openclaw/skills/`              |
+| Agents (spec)  | `agents`      | `.agents/skills/`         | `~/.agents/skills/`                |
 
 ---
 

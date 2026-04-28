@@ -130,34 +130,35 @@ osk list --json
 
 ## update
 
-Update skills and repositories.
+Check installed skills for updates and optionally apply them.
 
 ```bash
-osk update [skill]
+osk update
 ```
 
 **Aliases:** `up`
 
-**Arguments:**
-
-- `skill` - Specific skill to update (optional)
-
 **Options:**
 
-- `--repos-only` - Only update repositories
 - `--check` - Check for updates without applying
+- `--repos` - Only update repository caches
+- `-a, --all` - Update all skills without prompting (CI-friendly)
+- `-s, --server <url>` - Server URL override
 
 **Examples:**
 
 ```bash
-# Update everything
+# Interactive update (pick which to apply)
 osk update
 
-# Check for updates
+# Check for updates only
 osk update --check
 
-# Update repositories only
-osk update --repos-only
+# Non-interactive: update everything
+osk update -a
+
+# Update repository cache only
+osk update --repos
 ```
 
 ---
@@ -408,7 +409,7 @@ osk convert my-skill --from claude --to codex -o ./converted/
 
 ## init
 
-Create a new skill.
+Create a new skill (a directory containing a `SKILL.md` file).
 
 ```bash
 osk init [name]
@@ -420,20 +421,21 @@ osk init [name]
 
 **Options:**
 
-- `--agent <agent>` - Target agent
-- `--template <template>` - Use a template
+- `-d, --dir <path>` - Directory to create skill in (default: current)
+- `--description <text>` - Skill description (skips the description prompt)
+- `-y, --yes` - Non-interactive mode. Requires `name` and `--description` to be provided; fails instead of prompting.
 
 **Examples:**
 
 ```bash
-# Interactive creation
+# Interactive creation (prompts for name + description)
 osk init
 
-# Create with name
+# Name as argument (still prompts for description)
 osk init my-new-skill
 
-# Create for specific agent
-osk init my-skill --agent claude
+# Fully non-interactive (CI-friendly)
+osk init my-skill --description "Does the thing" -y
 ```
 
 ---

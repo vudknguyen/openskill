@@ -23,21 +23,29 @@ ${colors.bold}SYNOPSIS${colors.reset}
     ${colors.cyan}osk${colors.reset} <command> [arguments] [options]
 
 ${colors.bold}DESCRIPTION${colors.reset}
-    OpenSkill (osk) manages skills across multiple AI coding agents including
-    Claude Code, Antigravity, OpenAI Codex, and Cursor. Skills are packages of
-    instructions that extend agent capabilities.
+    OpenSkill (osk) manages skills across multiple AI coding agents.
+    Skills are packages of instructions that extend agent capabilities.
 
 ${colors.bold}COMMANDS${colors.reset}
-    ${colors.cyan}install${colors.reset}, ${colors.cyan}i${colors.reset}      Install skills from a repository
+    ${colors.cyan}install${colors.reset}, ${colors.cyan}i${colors.reset}      Install skills from a repository or marketplace
     ${colors.cyan}uninstall${colors.reset}, ${colors.cyan}rm${colors.reset}   Remove installed skills
     ${colors.cyan}list${colors.reset}, ${colors.cyan}ls${colors.reset}        List installed skills or show skill details
     ${colors.cyan}update${colors.reset}, ${colors.cyan}up${colors.reset}      Check and apply skill updates
-    ${colors.cyan}search${colors.reset}, ${colors.cyan}s${colors.reset}       Search for skills in repositories
+    ${colors.cyan}search${colors.reset}, ${colors.cyan}s${colors.reset}       Search for skills in repositories or marketplace
     ${colors.cyan}browse${colors.reset}, ${colors.cyan}b${colors.reset}       Browse available skills
+    ${colors.cyan}push${colors.reset}           Push a skill to the marketplace (as draft)
+    ${colors.cyan}publish${colors.reset}        Make a pushed skill public
+    ${colors.cyan}share${colors.reset}          Push + share to an organization
+    ${colors.cyan}audit${colors.reset}          Run security audit on a skill
+    ${colors.cyan}login${colors.reset}          Authenticate with the marketplace
+    ${colors.cyan}logout${colors.reset}         Log out of the marketplace
+    ${colors.cyan}whoami${colors.reset}         Show current login status
+    ${colors.cyan}org${colors.reset}            Manage organizations (create, invite, members, skills)
     ${colors.cyan}repo${colors.reset}           Manage skill repositories
     ${colors.cyan}convert${colors.reset}        Convert skills between formats
     ${colors.cyan}init${colors.reset}           Create a new skill
     ${colors.cyan}validate${colors.reset}       Validate skill format
+    ${colors.cyan}doctor${colors.reset}         Diagnose CLI configuration and detect agents
     ${colors.cyan}man${colors.reset}            Show detailed help for commands
     ${colors.cyan}which${colors.reset}          Show installation path for a skill
     ${colors.cyan}config${colors.reset}         Manage configuration
@@ -45,9 +53,17 @@ ${colors.bold}COMMANDS${colors.reset}
 
 ${colors.bold}AGENTS${colors.reset}
     ${colors.yellow}claude${colors.reset}         Claude Code (.claude/skills/)
-    ${colors.yellow}antigravity${colors.reset}    Antigravity (.antigravity/skills/)
-    ${colors.yellow}codex${colors.reset}          OpenAI Codex (.codex/skills/)
     ${colors.yellow}cursor${colors.reset}         Cursor (.cursor/skills/)
+    ${colors.yellow}codex${colors.reset}          OpenAI Codex (.codex/skills/)
+    ${colors.yellow}antigravity${colors.reset}    Antigravity (.antigravity/skills/)
+    ${colors.yellow}gemini${colors.reset}         Gemini CLI (.gemini/skills/)
+    ${colors.yellow}copilot${colors.reset}        GitHub Copilot (.github/copilot/skills/)
+    ${colors.yellow}opencode${colors.reset}       OpenCode (.opencode/skills/)
+    ${colors.yellow}windsurf${colors.reset}       Windsurf (.windsurf/skills/)
+    ${colors.yellow}kiro${colors.reset}           Kiro (.kiro/skills/)
+    ${colors.yellow}warp${colors.reset}           Warp (.warp/skills/)
+    ${colors.yellow}openclaw${colors.reset}       OpenClaw (skills/)
+    ${colors.yellow}agents${colors.reset}         Generic Agents spec (.agents/skills/)
 
 ${colors.bold}EXAMPLES${colors.reset}
     ${colors.dim}# Install skills interactively${colors.reset}
@@ -97,7 +113,8 @@ ${colors.bold}ARGUMENTS${colors.reset}
 
 ${colors.bold}OPTIONS${colors.reset}
     ${colors.cyan}-t, --target <agent>${colors.reset}
-        Target agent: claude, antigravity, codex, cursor
+        Target agent. One of: claude, cursor, codex, antigravity,
+        gemini, copilot, opencode, windsurf, kiro, warp, openclaw, agents
 
     ${colors.cyan}-a, --all${colors.reset}
         Install all skills from repository (requires -t/--target)
@@ -153,12 +170,18 @@ ${colors.bold}OPTIONS${colors.reset}
     ${colors.cyan}--repos${colors.reset}
         Only update repository caches (not installed skills)
 
+    ${colors.cyan}-a, --all${colors.reset}
+        Update all available skills without prompting (CI-friendly)
+
 ${colors.bold}EXAMPLES${colors.reset}
     ${colors.dim}# Check for updates${colors.reset}
     osk update --check
 
-    ${colors.dim}# Interactive update${colors.reset}
+    ${colors.dim}# Interactive update (pick which to apply)${colors.reset}
     osk update
+
+    ${colors.dim}# Non-interactive: update everything${colors.reset}
+    osk update -a
 
     ${colors.dim}# Update repository cache${colors.reset}
     osk update --repos
@@ -292,12 +315,22 @@ ${colors.bold}OPTIONS${colors.reset}
     ${colors.cyan}-d, --dir <path>${colors.reset}
         Directory to create skill in (default: current)
 
+    ${colors.cyan}--description <text>${colors.reset}
+        Skill description (skips the description prompt)
+
+    ${colors.cyan}-y, --yes${colors.reset}
+        Non-interactive mode. Requires <name> as argument and --description.
+        Fails if either is missing instead of prompting.
+
 ${colors.bold}EXAMPLES${colors.reset}
     ${colors.dim}# Interactive creation${colors.reset}
     osk init
 
-    ${colors.dim}# Create with name${colors.reset}
+    ${colors.dim}# Create with name (prompts for description)${colors.reset}
     osk init my-skill
+
+    ${colors.dim}# Fully non-interactive (CI-friendly)${colors.reset}
+    osk init my-skill --description "Does the thing" -y
 `,
 
   convert: `

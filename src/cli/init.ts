@@ -10,6 +10,8 @@ export const initCommand = new Command("init")
   .description("Create a new skill")
   .argument("[name]", "Skill name")
   .option("-d, --dir <path>", "Directory to create skill in", ".")
+  .option("--description <text>", "Skill description (skips the description prompt)")
+  .option("-y, --yes", "Non-interactive: fail if required fields are missing instead of prompting")
   .addHelpText(
     "after",
     `
@@ -24,6 +26,10 @@ Examples:
       let skillName = name;
 
       if (!skillName) {
+        if (options.yes) {
+          logger.error("Skill name is required in non-interactive mode. Pass it as an argument.");
+          process.exit(1);
+        }
         skillName = await input("Skill name:", (value: string) => {
           const result = validateSkillName(value);
           return result.valid || result.error || "Invalid name";
@@ -36,10 +42,23 @@ Examples:
         }
       }
 
-      const description = await input("Description:", (value: string) => {
-        const result = validateSkillDescription(value);
-        return result.valid || result.error || "Invalid description";
-      });
+      let description: string;
+      if (options.description) {
+        const validation = validateSkillDescription(options.description);
+        if (!validation.valid) {
+          logger.error(`Invalid description: ${validation.error}`);
+          process.exit(1);
+        }
+        description = options.description;
+      } else if (options.yes) {
+        logger.error("--description is required in non-interactive mode (-y).");
+        process.exit(1);
+      } else {
+        description = await input("Description:", (value: string) => {
+          const result = validateSkillDescription(value);
+          return result.valid || result.error || "Invalid description";
+        });
+      }
 
       const skillDir = safeJoinPath(options.dir, skillName);
       if (!skillDir) {
