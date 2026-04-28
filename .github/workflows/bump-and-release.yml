@@ -1,0 +1,112 @@
+name: Bump and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: "Semver bump type"
+        type: choice
+        required: true
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bump-and-release
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 24
+
+jobs:
+  # Fail fast (before reviewer approval is requested) if the workflow was
+  # dispatched from anywhere other than dev or main.
+  verify-branch:
+    name: Verify dispatch branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Reject feature-branch dispatches
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [[ "$BRANCH" != "dev" && "$BRANCH" != "main" ]]; then
+            echo "::error::Bump and Release can only run from 'dev' or 'main'. Got: $BRANCH"
+            exit 1
+          fi
+          echo "Dispatching from $BRANCH — OK"
+
+  bump-and-release:
+    name: Bump version and create release
+    needs: verify-branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+        with:
+          ref: ${{ github.ref_name }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Bump version in package.json + lockfile
+        env:
+          VERSION_TYPE: ${{ inputs.version_type }}
+        run: node scripts/version-bump.mjs "$VERSION_TYPE" --no-git
+
+      - name: Read new version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Tag is pushed over SSH (deploy key) — pushes from GITHUB_TOKEN don't
+      # trigger other workflows. SSH-pushed tags propagate so release.yml fires.
+      - name: Commit, tag, and push
+        id: bump_push
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "$TAG"
+
+          if ! git push origin "$BRANCH"; then
+            echo "Push rejected — pulling with rebase and retrying"
+            git pull --rebase origin "$BRANCH"
+            git push origin "$BRANCH"
+          fi
+
+          # Tag after push succeeds so it points to the actual branch tip.
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes
+
+      - name: Recovery hint on failure
+        if: failure() && steps.bump_push.outcome == 'success'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          echo "::warning::Bump commit and tag landed on the branch, but a later step failed."
+          echo "::warning::To attach release notes manually:"
+          echo "::warning::  gh release create $TAG --title $TAG --generate-notes"
