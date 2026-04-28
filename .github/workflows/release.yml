@@ -1,5 +1,8 @@
 name: Release
 
+# Triggered when bump-and-release.yml creates a new GitHub release.
+# Runs validation, builds binaries, publishes to npm, uploads release assets.
+
 on:
   release:
     types: [published]
@@ -11,90 +14,14 @@ env:
   NODE_VERSION: 24
 
 jobs:
-  # Validate version and run tests
   validate:
-    name: Validate & Test
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.VERSION }}
-      version_number: ${{ steps.version.outputs.VERSION_NUMBER }}
-    steps:
-      - name: Validate tag format
-        env:
-          TAG_NAME: ${{ github.event.release.tag_name }}
-        run: |
-          if ! echo "$TAG_NAME" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Invalid tag format: $TAG_NAME. Expected format: v<major>.<minor>.<patch> (e.g., v1.2.3)"
-            exit 1
-          fi
+    uses: ./.github/workflows/validate.yml
 
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
-
-      - name: Get version from release
-        id: version
-        env:
-          TAG_NAME: ${{ github.event.release.tag_name }}
-        run: |
-          VERSION="$TAG_NAME"
-          VERSION_NUMBER="${VERSION#v}"
-          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "VERSION_NUMBER=$VERSION_NUMBER" >> "$GITHUB_OUTPUT"
-          echo "Release version: $VERSION"
-          echo "Version number: $VERSION_NUMBER"
-
-      - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Update package.json version
-        env:
-          VERSION_NUMBER: ${{ steps.version.outputs.VERSION_NUMBER }}
-        run: npm version "$VERSION_NUMBER" --no-git-tag-version --allow-same-version
-
-      - name: Build
-        run: npm run build
-
-      - name: Test
-        run: npm test -- --run
-
-  # Run tests on all platforms
-  test:
-    name: Test (${{ matrix.os }}, Node ${{ matrix.node }})
-    runs-on: ${{ matrix.os }}
-    needs: validate
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [18, 20, 22, 24]
-    steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
-        with:
-          node-version: ${{ matrix.node }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Test
-        run: npm test -- --run
-
-  # Build standalone binaries
   build-binaries:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    needs: [validate, test]
+    needs: validate
+    environment: release
     strategy:
       matrix:
         include:
@@ -116,19 +43,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Update package.json version
-        shell: bash
-        env:
-          VERSION_NUMBER: ${{ needs.validate.outputs.version_number }}
-        run: npm version "$VERSION_NUMBER" --no-git-tag-version --allow-same-version
-
       - name: Build TypeScript
         run: npm run build
+
+      - name: Read package version
+        id: version
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Bundle with esbuild
         shell: bash
         env:
-          PKG_VERSION: ${{ needs.validate.outputs.version_number }}
+          PKG_VERSION: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p dist-bin
           npx esbuild dist/cli/index.js --bundle --platform=node --target=node18 --format=cjs --outfile=dist-bin/osk-bundle.cjs --minify --define:__BUILD_VERSION__="\"$PKG_VERSION\""
@@ -156,11 +82,14 @@ jobs:
           path: dist-bin/osk-*
           if-no-files-found: error
 
-  # Publish to npm
   publish-npm:
     name: Publish to npm
     runs-on: ubuntu-latest
-    needs: [validate, test]
+    needs: validate
+    environment: release
+    permissions:
+      contents: read
+      id-token: write # for npm provenance
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
 
@@ -174,24 +103,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Update package.json version
-        env:
-          VERSION_NUMBER: ${{ needs.validate.outputs.version_number }}
-        run: npm version "$VERSION_NUMBER" --no-git-tag-version --allow-same-version
-
       - name: Build
         run: npm run build
 
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # Upload binaries to existing GitHub Release
   upload-assets:
     name: Upload Release Assets
     runs-on: ubuntu-latest
-    needs: [validate, build-binaries, publish-npm]
+    needs: [build-binaries, publish-npm]
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
 
@@ -206,10 +129,7 @@ jobs:
           find artifacts -name 'osk-*' -type f -exec cp {} release/ \;
           cd release
           sha256sum osk-* > checksums.txt
-          echo "Release files:"
           ls -la
-          echo ""
-          echo "Checksums:"
           cat checksums.txt
 
       - name: Upload binaries to release
@@ -223,16 +143,14 @@ jobs:
             gh release upload "$TAG_NAME" "$file" --clobber
           done
 
-      - name: Update release body with install instructions
+      - name: Append install instructions to release body
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.event.release.tag_name }}
           REPO: ${{ github.repository }}
         run: |
-          # Get current release body
           CURRENT_BODY=$(gh release view "$TAG_NAME" --json body -q .body)
 
-          # Append install instructions
           INSTALL_INSTRUCTIONS=$(cat << 'EOF'
 
           ---
@@ -261,7 +179,6 @@ jobs:
 
           #### macOS / Linux
           ```bash
-          # Download (replace with your platform)
           curl -L -o osk https://github.com/$REPO/releases/download/$TAG_NAME/osk-macos-arm64
           chmod +x osk
           sudo mv osk /usr/local/bin/
@@ -274,6 +191,5 @@ jobs:
           EOF
           )
 
-          # Combine and update
           UPDATED_BODY="${CURRENT_BODY}${INSTALL_INSTRUCTIONS}"
           gh release edit "$TAG_NAME" --notes "$UPDATED_BODY"

@@ -119,6 +119,29 @@ For auto-fixable issues:
 - Lint: `npm run lint:fix`
 - Formatting: `npm run format:check -- --write` (or `npm run format`)
 
+## Release flow
+
+All releases go through GitHub Actions. **No local `npm version` or manual tag pushing.**
+
+1. Go to **Actions → Bump and Release → Run workflow**
+2. Pick the branch (`main` or `dev`) and the bump type (`patch` / `minor` / `major`)
+3. Approve the deployment in the `release` GitHub Environment (required reviewer gate)
+4. The workflow runs `scripts/version-bump.mjs`, commits `vX.Y.Z`, tags it, pushes via SSH deploy key, and creates a GitHub Release with auto-generated notes
+5. The new release triggers `.github/workflows/release.yml`, which:
+   - Runs the full validation suite (`validate.yml` reusable workflow)
+   - Builds standalone binaries for macOS / Linux / Windows
+   - Publishes to npm with provenance
+   - Uploads binaries + checksums + install instructions to the release
+
+Releases require approval twice (once when `bump-and-release` enters the `release` environment, once when `release.yml` publishes). This is intentional — every npm publish gets a final eyes-on-it click.
+
+**Workflow files:**
+
+- `.github/workflows/validate.yml` — reusable; lint + format + build + test on Ubuntu/macOS/Windows × Node 18/20/22/24
+- `.github/workflows/ci.yml` — calls `validate.yml` on PRs and pushes to `main`/`dev`
+- `.github/workflows/bump-and-release.yml` — manual `workflow_dispatch`; bumps + tags + creates GitHub Release
+- `.github/workflows/release.yml` — triggered by `release: published`; validates, builds binaries, publishes to npm
+
 ## Key Patterns
 
 - **Agent Interface**: Implement `Agent` in `src/agents/types.ts` to add new agents
