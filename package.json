@@ -1,6 +1,6 @@
 {
   "name": "openskill-cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Agent-agnostic skill manager for AI coding agents (Claude Code, Cursor, Codex, Antigravity)",
   "type": "module",
   "main": "./dist/cli/index.js",
