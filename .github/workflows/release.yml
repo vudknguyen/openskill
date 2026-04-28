@@ -1,11 +1,16 @@
 name: Release
 
-# Triggered when bump-and-release.yml creates a new GitHub release.
-# Runs validation, builds binaries, publishes to npm, uploads release assets.
+# Triggered when bump-and-release.yml SSH-pushes a vX.Y.Z tag.
+# (We trigger on the tag push, not `release: published`, because releases
+# created via GITHUB_TOKEN don't fire downstream workflow events. The tag
+# pushed via SSH deploy key does trigger workflows.)
+#
+# Runs validation, builds binaries, publishes to npm, uploads release assets
+# to the GitHub Release that bump-and-release.yml already created.
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*.*.*"]
 
 permissions:
   contents: write
@@ -135,7 +140,7 @@ jobs:
       - name: Upload binaries to release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.event.release.tag_name }}
+          TAG_NAME: ${{ github.ref_name }}
         run: |
           cd release
           for file in osk-* checksums.txt; do
@@ -146,7 +151,7 @@ jobs:
       - name: Append install instructions to release body
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.event.release.tag_name }}
+          TAG_NAME: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
           CURRENT_BODY=$(gh release view "$TAG_NAME" --json body -q .body)
